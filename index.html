@@ -7,11 +7,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>VW Vintage Arcade</title>
+<title>Cox'Attitude</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23E3A73E'/%3E%3Ccircle cx='50' cy='42' r='28' fill='%23F7E7C6'/%3E%3Crect x='18' y='46' width='64' height='30' rx='15' fill='%232E8C82'/%3E%3Ccircle cx='34' cy='58' r='7' fill='%234A2F23'/%3E%3Ccircle cx='66' cy='58' r='7' fill='%234A2F23'/%3E%3C/svg%3E">
 <style>
 /* ==========================================================================
-   VW VINTAGE ARCADE — feuille de style
+   COX'ATTITUDE — feuille de style
    Palette "California 70s" : crème chaude, moutarde, orange, teal, terracotta.
    ========================================================================== */
 *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -99,35 +99,46 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
 .flower{ position:absolute; bottom:10px; width:22px; height:22px; }
 .flower1{ left:9%; transform:scale(.85); }
 .flower2{ right:11%; transform:scale(1.05); }
+.road-ribbon{ position:absolute; left:0; bottom:0; width:100%; height:78%; z-index:1; pointer-events:none; }
 
 .menu-content{
   flex:1; min-height:0; display:flex; flex-direction:column; align-items:center;
-  padding:14px 20px 22px; overflow-y:auto; position:relative; z-index:2; margin-top:-16px;
+  padding:16px 20px 20px; overflow-y:auto; position:relative; z-index:2; margin-top:-16px;
 }
-.title{ text-align:center; margin:2px 0 4px; line-height:.92; }
+.title-wrap{ position:relative; display:inline-block; }
+.title{ text-align:center; margin:2px 0 4px; line-height:.9; }
 .title-line1,.title-line2{
   display:block; font-weight:900; letter-spacing:1.5px;
   -webkit-text-stroke:1px var(--brown);
 }
 .title-line1{
-  font-size:clamp(22px,7vw,28px); color:var(--paper);
+  font-size:clamp(24px,7.5vw,30px); color:var(--paper);
   text-shadow:2px 2px 0 var(--brown), 4px 4px 0 rgba(74,47,35,.3);
 }
 .title-line2{
-  font-size:clamp(30px,9.5vw,38px); color:var(--teal);
+  font-size:clamp(32px,10vw,40px); color:var(--teal);
   text-shadow:2px 2px 0 var(--brown), 4px 4px 0 rgba(74,47,35,.3);
 }
-.subtitle{ margin:6px 0 16px; font-size:13px; font-weight:700; color:var(--brown-light); text-align:center; }
+.ladybug-deco{ position:absolute; width:30px; height:30px; top:-8px; right:-24px; transform:rotate(16deg); filter:drop-shadow(1px 2px 0 rgba(74,47,35,.35)); }
+
+.title-divider{ display:flex; gap:6px; align-items:center; justify-content:center; margin:10px 0 18px; }
+.title-divider span{ display:block; width:13px; height:5px; border-radius:3px; background:var(--mustard-dark); }
+.title-divider span:nth-child(3){ width:24px; background:var(--terracotta); }
 
 .mode-cards{ width:100%; display:flex; flex-direction:column; gap:14px; }
 .mode-card{
   position:relative; display:flex; align-items:center; gap:12px; width:100%;
   background:var(--paper); border:3px solid var(--brown); border-radius:20px;
-  box-shadow:5px 5px 0 var(--brown); padding:12px; text-align:left;
+  box-shadow:5px 5px 0 var(--brown); padding:13px 13px 13px 25px; text-align:left;
   transition:transform .08s ease, box-shadow .08s ease;
 }
 .mode-card:active{ transform:translate(4px,4px); box-shadow:1px 1px 0 var(--brown); }
-.mode-icon{ width:62px; height:62px; flex-shrink:0; display:block; border-radius:14px; background:var(--cream-dark); }
+.mode-card::before{
+  content:""; position:absolute; left:9px; top:12px; bottom:12px; width:6px; border-radius:4px;
+}
+.mode-card[data-mode="snake"]::before{ background:var(--teal); }
+.mode-card[data-mode="highway"]::before{ background:var(--terracotta); }
+.mode-icon{ width:68px; height:68px; flex-shrink:0; display:block; border-radius:15px; background:var(--cream-dark); }
 .mode-info{ flex:1; min-width:0; }
 .mode-info h2{ font-size:15px; letter-spacing:.3px; color:var(--brown); margin-bottom:3px; }
 .mode-info p{ font-size:11.5px; color:var(--brown-light); margin-bottom:6px; }
@@ -138,7 +149,11 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
   font-size:10px; font-weight:800; letter-spacing:.4px; padding:4px 9px;
   border-radius:20px; border:2px solid var(--brown);
 }
-.footer-note{ margin-top:16px; font-size:11.5px; color:var(--brown-light); text-align:center; }
+.menu-footer-deco{
+  margin-top:20px; width:64%; max-width:200px; height:3px; border-radius:2px; flex-shrink:0;
+  background:repeating-linear-gradient(90deg, var(--brown-light) 0 8px, transparent 8px 15px);
+  opacity:.5;
+}
 
 /* -------------------------------- ÉCRAN JEU -------------------------------- */
 #screen-game{ background:var(--brown); }
@@ -231,16 +246,39 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
       <div class="cloud cloud2"></div>
       <div class="hill hill-back"></div>
       <div class="hill hill-front"></div>
+      <svg class="road-ribbon" viewBox="0 0 300 210" preserveAspectRatio="none" aria-hidden="true">
+        <polygon points="86,210 174,210 155,84 105,84" fill="#F3E3C0" opacity="0.55"/>
+        <line x1="129" y1="205" x2="151" y2="88" stroke="#4A2F23" stroke-width="2" stroke-dasharray="7 8" opacity="0.35"/>
+        <g transform="translate(111,158) rotate(-4)">
+          <rect x="-12" y="-6.5" width="24" height="13" rx="5.5" fill="#4A2F23" opacity="0.55"/>
+          <rect x="-4" y="-10.5" width="13" height="7" rx="2.5" fill="#4A2F23" opacity="0.55"/>
+        </g>
+        <g transform="translate(147,112) rotate(-3)">
+          <ellipse cx="0" cy="0" rx="7.5" ry="5.5" fill="#4A2F23" opacity="0.5"/>
+        </g>
+      </svg>
       <svg class="flower flower1" viewBox="0 0 40 40"><g fill="#C1502E"><circle cx="20" cy="9" r="7"/><circle cx="20" cy="31" r="7"/><circle cx="9" cy="20" r="7"/><circle cx="31" cy="20" r="7"/></g><circle cx="20" cy="20" r="6.5" fill="#E3A73E"/></svg>
       <svg class="flower flower2" viewBox="0 0 40 40"><g fill="#FBF0DA"><circle cx="20" cy="9" r="7"/><circle cx="20" cy="31" r="7"/><circle cx="9" cy="20" r="7"/><circle cx="31" cy="20" r="7"/></g><circle cx="20" cy="20" r="6.5" fill="#2E8C82"/></svg>
     </div>
 
     <div class="menu-content">
-      <h1 class="title">
-        <span class="title-line1">VW VINTAGE</span>
-        <span class="title-line2">ARCADE</span>
-      </h1>
-      <p class="subtitle">Deux jeux rétro, un seul road trip 🌻</p>
+      <div class="title-wrap">
+        <h1 class="title">
+          <span class="title-line1">COX'</span>
+          <span class="title-line2">ATTITUDE</span>
+        </h1>
+        <svg class="ladybug-deco" viewBox="0 0 40 40" aria-hidden="true">
+          <ellipse cx="20" cy="23" rx="14" ry="12" fill="#C1502E"/>
+          <path d="M20 11 L20 34" stroke="#4A2F23" stroke-width="1.6"/>
+          <circle cx="20" cy="10" r="6.5" fill="#2B1B14"/>
+          <circle cx="13" cy="19" r="2.3" fill="#2B1B14"/>
+          <circle cx="27" cy="19" r="2.3" fill="#2B1B14"/>
+          <circle cx="13" cy="28" r="2.1" fill="#2B1B14"/>
+          <circle cx="27" cy="28" r="2.1" fill="#2B1B14"/>
+          <circle cx="20" cy="31" r="2" fill="#2B1B14"/>
+        </svg>
+      </div>
+      <div class="title-divider" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
 
       <div class="mode-cards">
         <button class="mode-card" data-mode="snake" type="button">
@@ -264,7 +302,7 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
         </button>
       </div>
 
-      <p class="footer-note">100% dans ton navigateur · scores sauvegardés sur cet appareil</p>
+      <div class="menu-footer-deco" aria-hidden="true"></div>
     </div>
   </section>
 
@@ -302,7 +340,7 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
 'use strict';
 
 /* ==========================================================================
-   VW VINTAGE ARCADE — logique du jeu
+   COX'ATTITUDE — logique du jeu
    Fichier unique, sans dépendance externe. Rendu 100% Canvas pour le jeu,
    HTML/CSS pour les menus et overlays.
    ========================================================================== */
@@ -350,7 +388,7 @@ var PAL = {
 };
 
 /* -------------------------------- STOCKAGE -------------------------------- */
-var STORE_KEYS = { snake:'vwArcade.highscore.snake', highway:'vwArcade.highscore.highway' };
+var STORE_KEYS = { snake:'coxAttitude.highscore.snake', highway:'coxAttitude.highscore.highway' };
 function getBest(mode){
   try{ return parseInt(localStorage.getItem(STORE_KEYS[mode]), 10) || 0; }
   catch(e){ return 0; }
@@ -409,59 +447,73 @@ window.addEventListener('resize', resizeCanvas);
 // Combi (fourgon) — orienté par défaut vers la droite (angle 0 = +x = avant)
 function drawCombi(ctx, cx, cy, size, angle, tone){
   tone = tone || { body:PAL.cream, trim:PAL.teal };
-  var w = size, h = size * 0.6;
+  var w = size, h = size * 0.62;
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(angle);
 
+  // ombre portée
   ctx.fillStyle = 'rgba(74,47,35,0.18)';
-  roundRectPath(ctx, -w/2+2, -h/2+3, w, h, h*0.34);
+  roundRectPath(ctx, -w/2+2, -h/2+3, w, h, h*0.32);
   ctx.fill();
 
-  roundRectPath(ctx, -w/2, -h/2, w, h, h*0.34);
+  // carrosserie (couleur) — carénage bas + bande avant, signature 2 tons du Combi
+  roundRectPath(ctx, -w/2, -h/2, w, h, h*0.32);
+  ctx.fillStyle = tone.trim;
+  ctx.fill();
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = PAL.brown;
+  ctx.stroke();
+
+  // pavillon crème encastré (s'arrête avant le museau pour garder la bande 2 tons visible devant)
+  roundRectPath(ctx, -w*0.42, -h*0.34, w*0.60, h*0.68, h*0.18);
   ctx.fillStyle = tone.body;
   ctx.fill();
-  ctx.lineWidth = Math.max(1.5, h*0.09);
-  ctx.strokeStyle = tone.trim;
-  ctx.stroke();
 
   // roues aux quatre coins
   ctx.fillStyle = PAL.brown;
-  var wheelR = h * 0.14;
-  var wheelPos = [[-w*0.30,-h*0.5],[-w*0.30,h*0.5],[w*0.30,-h*0.5],[w*0.30,h*0.5]];
+  var wheelR = h * 0.15;
+  var wheelPos = [[-w*0.32,-h*0.5],[-w*0.32,h*0.5],[w*0.32,-h*0.5],[w*0.32,h*0.5]];
   for (var i=0;i<wheelPos.length;i++){
     var p = wheelPos[i];
-    roundRectPath(ctx, p[0]-wheelR, p[1]-wheelR*0.6, wheelR*2, wheelR*1.2, wheelR*0.5);
+    roundRectPath(ctx, p[0]-wheelR, p[1]-wheelR*0.62, wheelR*2, wheelR*1.24, wheelR*0.5);
     ctx.fill();
   }
 
-  // pare-brise avant (le "devant" est vers +x)
+  // pare-brise "splitscreen" (grand — signature du Combi) — le "devant" est vers +x
   ctx.fillStyle = PAL.glass;
-  roundRectPath(ctx, w*0.16, -h*0.32, w*0.18, h*0.64, 4);
+  roundRectPath(ctx, w*0.10, -h*0.32, w*0.19, h*0.64, 5);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+  ctx.lineWidth = 1.6;
   ctx.beginPath();
-  ctx.moveTo(w*0.25, -h*0.30);
-  ctx.lineTo(w*0.25, h*0.30);
+  ctx.moveTo(w*0.195, -h*0.30);
+  ctx.lineTo(w*0.195, h*0.30);
   ctx.stroke();
 
-  // phares
+  // rétroviseurs (montés à la base du pare-brise)
+  ctx.fillStyle = tone.trim;
+  ctx.fillRect(w*0.13, -h*0.60, w*0.05, h*0.12);
+  ctx.fillRect(w*0.13, h*0.48, w*0.05, h*0.12);
+
+  // museau / calandre avant
+  ctx.fillStyle = tone.trim;
+  roundRectPath(ctx, w*0.36, -h*0.28, w*0.14, h*0.56, 4);
+  ctx.fill();
+  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1; ctx.stroke();
+
+  // phares ronds
   ctx.fillStyle = PAL.paper;
   ctx.strokeStyle = PAL.brown;
   ctx.lineWidth = 1;
-  [-h*0.30, h*0.30].forEach(function(py){
-    ctx.beginPath(); ctx.arc(w*0.42, py, h*0.10, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  [-h*0.25, h*0.25].forEach(function(py){
+    ctx.beginPath(); ctx.arc(w*0.43, py, h*0.095, 0, Math.PI*2); ctx.fill(); ctx.stroke();
   });
 
-  // rétroviseurs
-  ctx.fillStyle = tone.trim;
-  ctx.fillRect(w*0.06, -h*0.58, w*0.06, h*0.10);
-  ctx.fillRect(w*0.06, h*0.48, w*0.06, h*0.10);
-
-  // badge central
-  ctx.fillStyle = tone.trim;
-  ctx.beginPath(); ctx.arc(w*0.36, 0, h*0.09, 0, Math.PI*2); ctx.fill();
+  // badge rond central sur le museau
+  ctx.fillStyle = PAL.paper;
+  ctx.beginPath(); ctx.arc(w*0.43, 0, h*0.075, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1; ctx.stroke();
 
   ctx.restore();
 }
@@ -539,40 +591,64 @@ function drawFood(ctx, cx, cy, size, type){
   else drawGasCan(ctx, cx, cy, size);
 }
 
+// Coccinelle vue de dessus — l'avant est vers -y (le sens de la route qui défile)
 function drawBeetleTopDown(ctx, cx, cy, size, tilt){
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(tilt || 0);
-  var w = size, h = size * 1.32;
 
+  var W = size, Hh = size * 1.36;
+  var bodyRX = W*0.36, bodyRY = Hh*0.47;
+  var fenderRX = W*0.16, fenderRY = Hh*0.115;
+  var fx = W*0.32, fy = Hh*0.30;
+  var fenders = [[-fx,-fy],[fx,-fy],[-fx,fy],[fx,fy]]; // avant-gauche, avant-droit, arrière-gauche, arrière-droit
+
+  // ombre portée
   ctx.fillStyle = 'rgba(74,47,35,0.2)';
-  ctx.beginPath(); ctx.ellipse(2,4,w*0.52,h*0.5,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2,4,bodyRX+fenderRX*0.7,bodyRY,0,0,Math.PI*2); ctx.fill();
 
+  // ailes galbées — signature ronde de la Coccinelle, posées sous la carrosserie
   ctx.fillStyle = PAL.mustard;
-  ctx.beginPath(); ctx.ellipse(0,0,w*0.5,h*0.5,0,0,Math.PI*2); ctx.fill();
-  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.3;
+  fenders.forEach(function(p){
+    ctx.beginPath(); ctx.ellipse(p[0],p[1],fenderRX,fenderRY,0,0,Math.PI*2);
+    ctx.fill(); ctx.stroke();
+  });
 
+  // carrosserie centrale — dôme très arrondi façon galet
+  ctx.beginPath(); ctx.ellipse(0,0,bodyRX,bodyRY,0,0,Math.PI*2);
+  ctx.fillStyle = PAL.mustard; ctx.fill();
+  ctx.lineWidth = 1.6; ctx.strokeStyle = PAL.brown; ctx.stroke();
+
+  // ligne de capot avant + moteur arrière
+  ctx.strokeStyle = 'rgba(74,47,35,0.3)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0,-bodyRY*0.92); ctx.lineTo(0,-bodyRY*0.22); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,bodyRY*0.22); ctx.lineTo(0,bodyRY*0.92); ctx.stroke();
+
+  // pare-brise avant galbé
   ctx.fillStyle = PAL.glass;
-  ctx.beginPath(); ctx.ellipse(0,-h*0.20,w*0.32,h*0.18,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0,-bodyRY*0.40,bodyRX*0.62,bodyRY*0.30,0,0,Math.PI*2); ctx.fill();
+  // lunette arrière
+  ctx.fillStyle = 'rgba(52,92,99,0.75)';
+  ctx.beginPath(); ctx.ellipse(0,bodyRY*0.46,bodyRX*0.50,bodyRY*0.24,0,0,Math.PI*2); ctx.fill();
 
-  ctx.fillStyle = 'rgba(52,92,99,0.7)';
-  ctx.beginPath(); ctx.ellipse(0,h*0.28,w*0.28,h*0.14,0,0,Math.PI*2); ctx.fill();
-
-  ctx.fillStyle = PAL.paper;
-  ctx.beginPath(); ctx.arc(-w*0.30,-h*0.40,w*0.10,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(w*0.30,-h*0.40,w*0.10,0,Math.PI*2); ctx.fill();
-
+  // phares ronds, nichés dans les ailes avant
+  ctx.fillStyle = PAL.paper; ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1;
+  [fenders[0], fenders[1]].forEach(function(p){
+    ctx.beginPath(); ctx.arc(p[0], p[1]-fenderRY*0.25, fenderRX*0.42, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  });
+  // feux arrière, nichés dans les ailes arrière
   ctx.fillStyle = PAL.terracotta;
-  ctx.beginPath(); ctx.arc(-w*0.30,h*0.42,w*0.07,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(w*0.30,h*0.42,w*0.07,0,Math.PI*2); ctx.fill();
+  [fenders[2], fenders[3]].forEach(function(p){
+    ctx.beginPath(); ctx.arc(p[0], p[1]+fenderRY*0.25, fenderRX*0.32, 0, Math.PI*2); ctx.fill();
+  });
 
+  // roues, au centre de chaque aile
   ctx.fillStyle = PAL.brown;
-  var wheelPos = [[-w*0.48,-h*0.28],[w*0.48,-h*0.28],[-w*0.48,h*0.28],[w*0.48,h*0.28]];
-  for (var i=0;i<wheelPos.length;i++){
-    var p = wheelPos[i];
-    roundRectPath(ctx, p[0]-w*0.06, p[1]-h*0.08, w*0.12, h*0.16, 3);
-    ctx.fill();
-  }
+  fenders.forEach(function(p){
+    ctx.beginPath(); ctx.ellipse(p[0],p[1],fenderRX*0.42,fenderRY*0.55,0,0,Math.PI*2); ctx.fill();
+  });
+
   ctx.restore();
 }
 
