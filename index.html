@@ -816,13 +816,37 @@ function renderSnake(){
   roundRectPath(ctx, sGrid.ox-4, sGrid.oy-4, sGrid.cols*sGrid.cell+8, sGrid.rows*sGrid.cell+8, 14);
   ctx.fill();
 
-  ctx.fillStyle = PAL.creamDark;
-  for (var x=0;x<=sGrid.cols;x++){
-    for (var y=0;y<=sGrid.rows;y++){
-      ctx.beginPath();
-      ctx.arc(sGrid.ox+x*sGrid.cell, sGrid.oy+y*sGrid.cell, 1.6, 0, Math.PI*2);
-      ctx.fill();
-    }
+  var head = snake.body[0];
+
+  // case actuelle (là où se trouve la tête) — remplissage sobre, sans animation
+  ctx.fillStyle = 'rgba(46,140,130,0.18)';
+  ctx.fillRect(sGrid.ox+head.x*sGrid.cell, sGrid.oy+head.y*sGrid.cell, sGrid.cell, sGrid.cell);
+
+  // grille — lignes fines qui délimitent vraiment chaque case (remplace les points, plus lisible)
+  ctx.strokeStyle = 'rgba(74,47,35,0.22)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (var gx=0; gx<=sGrid.cols; gx++){
+    var lx = sGrid.ox + gx*sGrid.cell;
+    ctx.moveTo(lx, sGrid.oy);
+    ctx.lineTo(lx, sGrid.oy + sGrid.rows*sGrid.cell);
+  }
+  for (var gy=0; gy<=sGrid.rows; gy++){
+    var ly = sGrid.oy + gy*sGrid.cell;
+    ctx.moveTo(sGrid.ox, ly);
+    ctx.lineTo(sGrid.ox + sGrid.cols*sGrid.cell, ly);
+  }
+  ctx.stroke();
+
+  // case cible — celle que la tête va occuper au prochain tick (tient compte d'un virage déjà amorcé)
+  var previewDir = sInputQueue.length ? sInputQueue[0] : snake.dir;
+  var tgx = head.x + previewDir.x, tgy = head.y + previewDir.y;
+  if (tgx >= 0 && tgx < sGrid.cols && tgy >= 0 && tgy < sGrid.rows){
+    ctx.strokeStyle = PAL.mustardDark;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4,3]);
+    ctx.strokeRect(sGrid.ox+tgx*sGrid.cell+2, sGrid.oy+tgy*sGrid.cell+2, sGrid.cell-4, sGrid.cell-4);
+    ctx.setLineDash([]);
   }
 
   var fcx = sGrid.ox + sFood.x*sGrid.cell + sGrid.cell/2;
@@ -864,9 +888,10 @@ function endSnake(){
    JEU 2 — BEETLE HIGHWAY
    ========================================================================== */
 var hLanes = { count:3, width:0, roadW:0, roadX:0 };
-var beetle, hObstacles, hDecor, hScore, hDistance, hSpeed, hSpawnAcc, hFirstInput, hBestCache;
-var H_BASE_SPEED = 230, H_MAX_SPEED = 560, H_ACCEL = 0.03, H_SPAWN_GAP = 230, BEETLE_Y_RATIO = 0.80;
+var beetle, hObstacles, hDecor, hScore, hDistance, hSpeed, hSpawnAcc, hFirstInput, hBestCache, hLastOpenLanes;
+var H_BASE_SPEED = 230, H_MAX_SPEED = 560, H_ACCEL = 0.03, H_SPAWN_GAP = 260, BEETLE_Y_RATIO = 0.80;
 var BEETLE_W_RATIO = 0.52; // taille visuelle de la Coccinelle du joueur, relative à la largeur d'une voie
+var H_MIN_REACT_TIME = 0.65; // secondes minimum garanties entre deux vagues, quelle que soit la vitesse
 
 function setupHighwayLanes(){
   var roadW = Math.min(W*0.94, 430);
@@ -885,6 +910,7 @@ function resetHighway(){
   hObstacles = [];
   hDecor = [];
   hScore = 0; hDistance = 0; hSpeed = H_BASE_SPEED; hSpawnAcc = 0; hFirstInput = false;
+  hLastOpenLanes = null;
   hBestCache = getBest('highway');
   updateHUD(hScore, hBestCache);
 }
@@ -894,19 +920,35 @@ function setBeetleLane(lane){
   if (!hFirstInput){ hFirstInput = true; hideHint(); }
 }
 
+function shuffleArray(arr){
+  for (var i=arr.length-1;i>0;i--){
+    var j = randInt(0,i);
+    var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  }
+  return arr;
+}
+
+// Système de vérification anti-blocage : on garantit qu'au moins une voie restée
+// libre à la vague précédente le reste aussi à celle-ci. Un joueur qui ne bouge
+// pas de cette voie n'est donc jamais pris au piège entre deux vagues, quelle
+// que soit la vitesse. La distance/temps minimum entre deux vagues (voir
+// H_MIN_REACT_TIME dans updateHighway) vient compléter cette garantie.
 function spawnObstacleWave(){
   var lanesToBlock = Math.random() < 0.35 ? 2 : 1;
-  var lanes = [];
-  for (var i=0;i<hLanes.count;i++) lanes.push(i);
-  for (var j=lanes.length-1;j>0;j--){
-    var k = randInt(0,j);
-    var tmp = lanes[j]; lanes[j] = lanes[k]; lanes[k] = tmp;
-  }
-  var chosen = lanes.slice(0, lanesToBlock);
+  var allLanes = [];
+  for (var i=0;i<hLanes.count;i++) allLanes.push(i);
+
+  var safeLane = (hLastOpenLanes && hLastOpenLanes.length) ? choice(hLastOpenLanes) : null;
+  var blockable = safeLane === null ? allLanes.slice() : allLanes.filter(function(l){ return l !== safeLane; });
+  shuffleArray(blockable);
+  var chosen = blockable.slice(0, Math.min(lanesToBlock, blockable.length));
+  var openLanes = allLanes.filter(function(l){ return chosen.indexOf(l) === -1; });
+
   var types = ['cone','pothole','slowcar'];
   chosen.forEach(function(lane){
     hObstacles.push({ lane:lane, y:-80, type: choice(types) });
   });
+  hLastOpenLanes = openLanes;
 }
 
 function spawnDecor(){
@@ -935,7 +977,8 @@ function updateHighway(dt){
   }
 
   hSpawnAcc += dy;
-  if (hSpawnAcc >= H_SPAWN_GAP){
+  var requiredGap = Math.max(H_SPAWN_GAP, hSpeed * H_MIN_REACT_TIME);
+  if (hSpawnAcc >= requiredGap){
     hSpawnAcc = 0;
     spawnObstacleWave();
     if (Math.random() < 0.6) spawnDecor();
@@ -1014,41 +1057,45 @@ function finishRun(mode, score, title){
 
 /* ==========================================================================
    ENTRÉES (tactile + clavier)
-   Glissé continu unifié pour les deux jeux : dès que le doigt franchit le
-   seuil dans une direction, l'action est déclenchée immédiatement et le point
-   de référence se réinitialise, ce qui permet d'enchaîner plusieurs virages
-   sans jamais relever le doigt (plus réactif qu'un swipe complet + relâcher).
+   Combi Snake : glissé CONTINU — dès que le doigt franchit le seuil dans une
+   direction, ça tourne immédiatement et le repère se réinitialise, ce qui
+   permet d'enchaîner plusieurs virages sans jamais relever le doigt.
+   Beetle Highway : glissé DISCRET — un seul changement de voie par geste,
+   évalué au relâchement du doigt. Pour changer encore de voie, il faut lever
+   le doigt et refaire un nouveau glissé gauche/droite.
    ========================================================================== */
 var touchDown = false;
-var touchRefX = 0, touchRefY = 0;
+var touchStartX = 0, touchStartY = 0; // point de départ fixe du geste (utilisé par Highway au relâchement)
+var touchRefX = 0, touchRefY = 0;     // point de référence mobile, réinitialisé en cours de geste (Snake)
 var SWIPE_THRESHOLD = 18;
 
 canvasWrap.addEventListener('pointerdown', function(e){
   touchDown = true;
+  touchStartX = e.clientX; touchStartY = e.clientY;
   touchRefX = e.clientX; touchRefY = e.clientY;
   try{ canvasWrap.setPointerCapture(e.pointerId); }catch(err){}
   if (e.cancelable) e.preventDefault();
 });
 
 canvasWrap.addEventListener('pointermove', function(e){
-  if (!touchDown || !running) return;
+  if (!touchDown || !running || currentMode !== 'snake') return;
   var dx = e.clientX - touchRefX, dy = e.clientY - touchRefY;
-
-  if (currentMode === 'snake'){
-    if (Math.abs(dx) >= SWIPE_THRESHOLD || Math.abs(dy) >= SWIPE_THRESHOLD){
-      if (Math.abs(dx) > Math.abs(dy)) queueSnakeDir(dx>0?1:-1, 0);
-      else queueSnakeDir(0, dy>0?1:-1);
-      touchRefX = e.clientX; touchRefY = e.clientY;
-    }
-  } else if (currentMode === 'highway'){
-    if (Math.abs(dx) >= SWIPE_THRESHOLD){
-      setBeetleLane(beetle.targetLane + (dx>0?1:-1));
-      touchRefX = e.clientX; touchRefY = e.clientY;
-    }
+  if (Math.abs(dx) >= SWIPE_THRESHOLD || Math.abs(dy) >= SWIPE_THRESHOLD){
+    if (Math.abs(dx) > Math.abs(dy)) queueSnakeDir(dx>0?1:-1, 0);
+    else queueSnakeDir(0, dy>0?1:-1);
+    touchRefX = e.clientX; touchRefY = e.clientY;
   }
 });
 
-canvasWrap.addEventListener('pointerup', function(){ touchDown = false; });
+canvasWrap.addEventListener('pointerup', function(e){
+  if (touchDown && currentMode === 'highway' && running){
+    var dx = e.clientX - touchStartX;
+    if (Math.abs(dx) >= SWIPE_THRESHOLD){
+      setBeetleLane(beetle.targetLane + (dx>0?1:-1));
+    }
+  }
+  touchDown = false;
+});
 canvasWrap.addEventListener('pointercancel', function(){ touchDown = false; });
 
 window.addEventListener('keydown', function(e){
