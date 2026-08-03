@@ -138,6 +138,7 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
 }
 .mode-card[data-mode="snake"]::before{ background:var(--teal); }
 .mode-card[data-mode="highway"]::before{ background:var(--terracotta); }
+.mode-card[data-mode="rodeo"]::before{ background:var(--orange); }
 .mode-icon{ width:68px; height:68px; flex-shrink:0; display:block; border-radius:15px; background:var(--cream-dark); }
 .mode-info{ flex:1; min-width:0; }
 .mode-info h2{ font-size:15px; letter-spacing:.3px; color:var(--brown); margin-bottom:3px; }
@@ -300,6 +301,16 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
           </div>
           <span class="play-chip">JOUER ▶</span>
         </button>
+
+        <button class="mode-card" data-mode="rodeo" type="button">
+          <canvas class="mode-icon" id="iconRodeo" width="120" height="120"></canvas>
+          <div class="mode-info">
+            <h2>COMBI RODÉO</h2>
+            <p>Saute au bon moment, évite tout</p>
+            <div class="mode-best">Meilleur score <strong id="bestRodeo">0</strong></div>
+          </div>
+          <span class="play-chip">JOUER ▶</span>
+        </button>
       </div>
 
       <div class="menu-footer-deco" aria-hidden="true"></div>
@@ -388,7 +399,7 @@ var PAL = {
 };
 
 /* -------------------------------- STOCKAGE -------------------------------- */
-var STORE_KEYS = { snake:'coxAttitude.highscore.snake', highway:'coxAttitude.highscore.highway' };
+var STORE_KEYS = { snake:'coxAttitude.highscore.snake', highway:'coxAttitude.highscore.highway', rodeo:'coxAttitude.highscore.rodeo' };
 function getBest(mode){
   try{ return parseInt(localStorage.getItem(STORE_KEYS[mode]), 10) || 0; }
   catch(e){ return 0; }
@@ -420,6 +431,7 @@ var countdownEl = document.getElementById('countdown');
 var swipeHint = document.getElementById('swipeHint');
 var bestSnakeEl = document.getElementById('bestSnake');
 var bestHighwayEl = document.getElementById('bestHighway');
+var bestRodeoEl = document.getElementById('bestRodeo');
 
 /* -------------------------------- ÉTAT GLOBAL -------------------------------- */
 var currentMode = null;   // 'snake' | 'highway'
@@ -437,6 +449,7 @@ function resizeCanvas(){
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (currentMode === 'snake') setupSnakeGrid();
   if (currentMode === 'highway') setupHighwayLanes();
+  if (currentMode === 'rodeo') setupRodeoGround();
 }
 window.addEventListener('resize', resizeCanvas);
 
@@ -712,6 +725,150 @@ function drawRoadsideDecor(ctx, x, y, type){
   ctx.restore();
 }
 
+// Combi vu de côté (Combi Rodéo) — le sol touche y=0, l'avant est vers +x
+function drawCombiSide(ctx, x, y, size, tilt){
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(tilt || 0);
+
+  var w = size;
+  var wheelR = size*0.135;
+  var wheelY = -wheelR;
+  var bodyH = size*0.56;
+  var bodyBottomY = wheelY;
+  var bodyTopY = bodyBottomY - bodyH;
+  var roofSplitY = bodyTopY + bodyH*0.46;
+
+  // carrosserie basse (couleur) — museau avant arrondi vers +x
+  roundRectPath(ctx, -w*0.46, bodyTopY, w*0.90, bodyBottomY-bodyTopY, { tl:bodyH*0.22, tr:bodyH*0.55, br:bodyH*0.12, bl:bodyH*0.12 });
+  ctx.fillStyle = PAL.teal;
+  ctx.fill();
+  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.6; ctx.stroke();
+
+  // pavillon crème
+  roundRectPath(ctx, -w*0.44, bodyTopY, w*0.86, roofSplitY-bodyTopY, { tl:bodyH*0.2, tr:bodyH*0.42, br:0, bl:0 });
+  ctx.fillStyle = PAL.cream;
+  ctx.fill();
+
+  // pare-brise avant, incliné
+  ctx.fillStyle = PAL.glass;
+  roundRectPath(ctx, w*0.08, bodyTopY+bodyH*0.08, w*0.28, bodyH*0.40, 6);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // rétroviseur
+  ctx.fillStyle = PAL.tealDark;
+  ctx.fillRect(w*0.05, bodyTopY+bodyH*0.26, w*0.05, bodyH*0.13);
+
+  // roues + enjoliveurs
+  [-w*0.27, w*0.27].forEach(function(wx){
+    ctx.fillStyle = PAL.brown;
+    ctx.beginPath(); ctx.arc(wx, wheelY, wheelR, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = PAL.paper;
+    ctx.beginPath(); ctx.arc(wx, wheelY, wheelR*0.42, 0, Math.PI*2); ctx.fill();
+  });
+
+  // pare-chocs avant + phare
+  ctx.fillStyle = PAL.brown;
+  ctx.fillRect(w*0.40, bodyBottomY-bodyH*0.16, w*0.06, bodyH*0.14);
+  ctx.fillStyle = PAL.paper;
+  ctx.beginPath(); ctx.arc(w*0.40, bodyTopY+bodyH*0.62, bodyH*0.085, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1; ctx.stroke();
+
+  // badge central
+  ctx.fillStyle = PAL.paper;
+  ctx.beginPath(); ctx.arc(-w*0.02, bodyTopY+bodyH*0.72, bodyH*0.07, 0, Math.PI*2); ctx.fill();
+
+  ctx.restore();
+}
+
+function drawCactus(ctx, x, groundY, w, h){
+  ctx.save();
+  ctx.translate(x, groundY);
+  ctx.fillStyle = PAL.green;
+  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.2;
+  roundRectPath(ctx, -w*0.18, -h, w*0.36, h, w*0.16); ctx.fill(); ctx.stroke();
+  roundRectPath(ctx, -w*0.5, -h*0.62, w*0.24, h*0.34, w*0.1); ctx.fill(); ctx.stroke();
+  roundRectPath(ctx, w*0.26, -h*0.78, w*0.24, h*0.34, w*0.1); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+function drawRockObstacle(ctx, x, groundY, w, h){
+  ctx.save();
+  ctx.translate(x, groundY);
+  ctx.fillStyle = PAL.brownLight;
+  ctx.beginPath();
+  ctx.moveTo(-w*0.5, 0);
+  ctx.lineTo(-w*0.42, -h*0.55);
+  ctx.lineTo(-w*0.1, -h);
+  ctx.lineTo(w*0.28, -h*0.82);
+  ctx.lineTo(w*0.5, -h*0.2);
+  ctx.lineTo(w*0.46, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.4; ctx.stroke();
+  ctx.restore();
+}
+
+// Bosse basse à bandes de danger (à sauter, comme les 2 autres obstacles au sol)
+function drawPotholeSide(ctx, x, groundY, w, h){
+  ctx.save();
+  ctx.translate(x, groundY);
+  roundRectPath(ctx, -w*0.5, -h, w, h, h*0.4);
+  ctx.fillStyle = PAL.orange;
+  ctx.fill();
+  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.3; ctx.stroke();
+  ctx.strokeStyle = PAL.white; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-w*0.3, -h*0.7); ctx.lineTo(-w*0.05, -h*0.7);
+  ctx.moveTo(w*0.05, -h*0.7); ctx.lineTo(w*0.3, -h*0.7);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawDune(ctx, x, groundY, w, h, tone){
+  ctx.save();
+  ctx.translate(x, groundY);
+  ctx.beginPath();
+  ctx.moveTo(-w/2, 0.5);
+  ctx.quadraticCurveTo(0, -h, w/2, 0.5);
+  ctx.closePath();
+  ctx.fillStyle = tone;
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawRodeoCollectible(ctx, x, y, type){
+  ctx.save();
+  ctx.translate(x, y);
+  if (type === 'flower'){
+    ctx.fillStyle = PAL.terracotta;
+    for (var i=0;i<6;i++){
+      var a = (i/6)*Math.PI*2;
+      ctx.beginPath();
+      ctx.ellipse(Math.cos(a)*7, Math.sin(a)*7, 5, 3, a, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.fillStyle = PAL.mustardDark;
+    ctx.beginPath(); ctx.arc(0,0,5,0,Math.PI*2); ctx.fill();
+  } else {
+    ctx.fillStyle = PAL.teal;
+    ctx.beginPath(); ctx.arc(0,0,7.5,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = PAL.paper;
+    ctx.beginPath();
+    for (var j=0;j<8;j++){
+      var ang = (j/8)*Math.PI*2;
+      var rr = (j%2===0) ? 7.5 : 5.2;
+      var px = Math.cos(ang)*rr, py = Math.sin(ang)*rr;
+      if (j===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
 function drawMenuIcons(){
   var c1 = document.getElementById('iconSnake');
   var g1 = c1.getContext('2d');
@@ -726,6 +883,13 @@ function drawMenuIcons(){
   g2.fillStyle = PAL.creamDark;
   roundRectPath(g2,0,0,c2.width,c2.height,16); g2.fill();
   drawBeetleTopDown(g2, c2.width/2, c2.height/2, c2.width*0.58, -0.08);
+
+  var c3 = document.getElementById('iconRodeo');
+  var g3 = c3.getContext('2d');
+  g3.clearRect(0,0,c3.width,c3.height);
+  g3.fillStyle = PAL.creamDark;
+  roundRectPath(g3,0,0,c3.width,c3.height,16); g3.fill();
+  drawCombiSide(g3, c3.width*0.56, c3.height*0.78, c3.width*0.62, -0.08);
 }
 
 /* ==========================================================================
@@ -816,12 +980,6 @@ function renderSnake(){
   roundRectPath(ctx, sGrid.ox-4, sGrid.oy-4, sGrid.cols*sGrid.cell+8, sGrid.rows*sGrid.cell+8, 14);
   ctx.fill();
 
-  var head = snake.body[0];
-
-  // case actuelle (là où se trouve la tête) — remplissage sobre, sans animation
-  ctx.fillStyle = 'rgba(46,140,130,0.18)';
-  ctx.fillRect(sGrid.ox+head.x*sGrid.cell, sGrid.oy+head.y*sGrid.cell, sGrid.cell, sGrid.cell);
-
   // grille — lignes fines qui délimitent vraiment chaque case (remplace les points, plus lisible)
   ctx.strokeStyle = 'rgba(74,47,35,0.22)';
   ctx.lineWidth = 1;
@@ -837,17 +995,6 @@ function renderSnake(){
     ctx.lineTo(sGrid.ox + sGrid.cols*sGrid.cell, ly);
   }
   ctx.stroke();
-
-  // case cible — celle que la tête va occuper au prochain tick (tient compte d'un virage déjà amorcé)
-  var previewDir = sInputQueue.length ? sInputQueue[0] : snake.dir;
-  var tgx = head.x + previewDir.x, tgy = head.y + previewDir.y;
-  if (tgx >= 0 && tgx < sGrid.cols && tgy >= 0 && tgy < sGrid.rows){
-    ctx.strokeStyle = PAL.mustardDark;
-    ctx.lineWidth = 2;
-    ctx.setLineDash([4,3]);
-    ctx.strokeRect(sGrid.ox+tgx*sGrid.cell+2, sGrid.oy+tgy*sGrid.cell+2, sGrid.cell-4, sGrid.cell-4);
-    ctx.setLineDash([]);
-  }
 
   var fcx = sGrid.ox + sFood.x*sGrid.cell + sGrid.cell/2;
   var fcy = sGrid.oy + sFood.y*sGrid.cell + sGrid.cell/2;
@@ -889,7 +1036,7 @@ function endSnake(){
    ========================================================================== */
 var hLanes = { count:3, width:0, roadW:0, roadX:0 };
 var beetle, hObstacles, hDecor, hScore, hDistance, hSpeed, hSpawnAcc, hFirstInput, hBestCache, hLastOpenLanes;
-var H_BASE_SPEED = 230, H_MAX_SPEED = 560, H_ACCEL = 0.03, H_SPAWN_GAP = 260, BEETLE_Y_RATIO = 0.80;
+var H_BASE_SPEED = 230, H_ACCEL = 0.03, H_SPAWN_GAP = 260, BEETLE_Y_RATIO = 0.80;
 var BEETLE_W_RATIO = 0.52; // taille visuelle de la Coccinelle du joueur, relative à la largeur d'une voie
 var H_MIN_REACT_TIME = 0.65; // secondes minimum garanties entre deux vagues, quelle que soit la vitesse
 
@@ -958,7 +1105,7 @@ function spawnDecor(){
 }
 
 function updateHighway(dt){
-  hSpeed = Math.min(H_MAX_SPEED, H_BASE_SPEED + hDistance*H_ACCEL);
+  hSpeed = H_BASE_SPEED + hDistance*H_ACCEL; // plus de plafond : ça accélère jusqu'à ce que le joueur perde
   var dy = hSpeed * dt;
   hDistance += dy;
   hScore = Math.floor(hDistance/10);
@@ -986,6 +1133,10 @@ function updateHighway(dt){
 
   updateHUD(hScore, hBestCache);
 
+  // La vitesse n'étant plus plafonnée, un obstacle peut franchir plusieurs dizaines de
+  // pixels en un seul frame : on teste donc le segment parcouru ce frame (position avant
+  // + après déplacement) plutôt que la seule position finale, pour ne jamais "traverser"
+  // le joueur sans détecter le contact.
   var shrink = 0.7;
   var bw = hLanes.width*BEETLE_W_RATIO*0.9*shrink, bh = bw*1.3;
   var beetleY = H*BEETLE_Y_RATIO;
@@ -995,7 +1146,8 @@ function updateHighway(dt){
     var ox = laneCenterX(obs.lane);
     var ow = hLanes.width*0.5*shrink;
     var oh = ow * (obs.type === 'slowcar' ? 1.3 : 0.8);
-    var ox1 = ox-ow/2, ox2 = ox+ow/2, oy1 = obs.y-oh/2, oy2 = obs.y+oh/2;
+    var ox1 = ox-ow/2, ox2 = ox+ow/2;
+    var oy1 = (obs.y - dy) - oh/2, oy2 = obs.y + oh/2; // balayage sur tout le trajet du frame
     if (rectsOverlap(bx1,by1,bx2,by2,ox1,oy1,ox2,oy2)){ endHighway(); return; }
   }
 }
@@ -1039,6 +1191,221 @@ function endHighway(){
 }
 
 /* ==========================================================================
+   JEU 3 — COMBI RODÉO
+   Vue de côté : le Combi avance tout seul, un tap = un saut ; garder le doigt
+   appuyé prolonge la montée (saut plus haut), comme dans beaucoup de jeux à
+   un bouton. Vitesse illimitée comme Beetle Highway : ça accélère jusqu'à
+   la fin de la partie.
+   ========================================================================== */
+var rGroundY = 0, rCombiSize = 0;
+var combi, rObstacles, rCollectibles, rDunes, rScore, rDistance, rSpeed, rSpawnAcc, rDuneAcc, rCollectAcc, rBestCache;
+var R_BASE_SPEED = 260, R_ACCEL = 0.05, R_MIN_GAP = 210, R_MIN_GAP_TIME = 0.8;
+var R_GRAVITY = 2200, R_JUMP_VELOCITY = -700, R_JUMP_CUT_MULT = 2.3;
+var R_COMBI_X_RATIO = 0.24;
+
+function setupRodeoGround(){
+  rGroundY = H * 0.76;
+  rCombiSize = Math.min(W*0.17, 82);
+}
+
+function resetRodeo(){
+  setupRodeoGround();
+  combi = { x: Math.min(W*R_COMBI_X_RATIO, 105), y: rGroundY, velY:0, grounded:true, holding:false, tilt:0 };
+  rObstacles = [];
+  rCollectibles = [];
+  rDunes = [
+    { x: W*0.2, w: W*0.55, h: H*0.10 },
+    { x: W*0.7, w: W*0.4, h: H*0.07 }
+  ];
+  rScore = 0; rDistance = 0; rSpeed = R_BASE_SPEED; rSpawnAcc = 0; rDuneAcc = 0; rCollectAcc = 0;
+  rBestCache = getBest('rodeo');
+  updateHUD(0, rBestCache);
+}
+
+// Déclenche le saut au moment où le doigt touche l'écran (pas au relâchement) :
+// c'est en gardant le contact appuyé que la montée se prolonge (voir updateRodeo).
+function tryRodeoJump(){
+  if (running && combi && combi.grounded){
+    combi.grounded = false;
+    combi.velY = R_JUMP_VELOCITY;
+    combi.holding = true;
+  }
+}
+
+function rodeoRelease(){
+  if (combi) combi.holding = false;
+}
+
+function spawnRodeoObstacle(){
+  var roll = Math.random();
+  var type = roll < 0.4 ? 'cactus' : (roll < 0.7 ? 'rock' : 'pothole');
+  var oh = type==='cactus' ? rand(44,62) : (type==='rock' ? rand(30,42) : rand(16,22));
+  var ow = type==='pothole' ? rand(48,66) : rand(24,32);
+  rObstacles.push({ x: W+40, w:ow, h:oh, type:type });
+
+  // parfois un second obstacle rapproché : force un saut plus long (garder le doigt appuyé)
+  if (rDistance > 500 && Math.random() < 0.24){
+    var gap = rand(64,92);
+    var type2 = Math.random()<0.5 ? 'cactus' : 'rock';
+    var h2 = type2==='cactus' ? rand(44,62) : rand(30,42);
+    var w2 = rand(24,32);
+    rObstacles.push({ x: W+40+ow+gap, w:w2, h:h2, type:type2 });
+  }
+}
+
+function spawnRodeoCollectible(){
+  var hgt = rand(46, 168);
+  rCollectibles.push({ x: W+30, y: rGroundY-hgt, type: Math.random()<0.55?'flower':'cap' });
+}
+
+function spawnRodeoDune(){
+  rDunes.push({ x: W+80, w: rand(140,240), h: rand(H*0.05, H*0.11) });
+}
+
+function updateRodeo(dt){
+  rSpeed = R_BASE_SPEED + rDistance*R_ACCEL; // pas de plafond, comme Beetle Highway : ça accélère jusqu'à la fin
+  var dx = rSpeed*dt;
+  rDistance += dx;
+  rScore = Math.floor(rDistance/8);
+
+  // physique du saut : tant que le doigt reste posé, la gravité normale s'applique et la
+  // montée se prolonge ; dès que le doigt est relâché (ou n'a jamais été maintenu), une
+  // gravité renforcée "coupe" la montée plus vite -> saut nettement plus court.
+  if (!combi.grounded){
+    var g = (combi.velY < 0 && !combi.holding) ? R_GRAVITY*R_JUMP_CUT_MULT : R_GRAVITY;
+    combi.velY += g*dt;
+    combi.y += combi.velY*dt;
+    if (combi.y >= rGroundY){
+      combi.y = rGroundY;
+      combi.velY = 0;
+      combi.grounded = true;
+    }
+  }
+  combi.tilt = clamp(-combi.velY*0.00055, -0.30, 0.38);
+
+  // dunes en arrière-plan (parallaxe : défilent plus lentement que le premier plan)
+  for (var di=rDunes.length-1; di>=0; di--){
+    rDunes[di].x -= dx*0.35;
+    if (rDunes[di].x < -rDunes[di].w) rDunes.splice(di,1);
+  }
+  rDuneAcc += dx;
+  if (rDuneAcc > 260){ rDuneAcc = 0; spawnRodeoDune(); }
+
+  // obstacles
+  for (var oi=rObstacles.length-1; oi>=0; oi--){
+    rObstacles[oi].x -= dx;
+    if (rObstacles[oi].x < -80) rObstacles.splice(oi,1);
+  }
+  rSpawnAcc += dx;
+  // même principe de vérification anti-blocage que Beetle Highway : l'écart minimum entre
+  // deux obstacles grandit avec la vitesse pour garantir un temps de réaction constant.
+  var requiredGap = Math.max(R_MIN_GAP, rSpeed*R_MIN_GAP_TIME);
+  if (rSpawnAcc >= requiredGap){
+    rSpawnAcc = 0;
+    spawnRodeoObstacle();
+  }
+
+  // collectibles
+  for (var ci=rCollectibles.length-1; ci>=0; ci--){
+    rCollectibles[ci].x -= dx;
+    if (rCollectibles[ci].x < -40) rCollectibles.splice(ci,1);
+  }
+  rCollectAcc += dx;
+  if (rCollectAcc >= 300){
+    rCollectAcc = 0;
+    if (Math.random() < 0.55) spawnRodeoCollectible();
+  }
+
+  updateHUD(rScore, rBestCache);
+
+  // collisions — boîte du Combi
+  var combiW = rCombiSize*0.78, combiH = rCombiSize*0.60;
+  var cx1 = combi.x - combiW/2, cx2 = combi.x + combiW/2;
+  var cy1 = combi.y - combiH, cy2 = combi.y;
+
+  // obstacles : balayage horizontal du frame (comme Highway) pour ne jamais "traverser"
+  // un obstacle sans contact lorsque la vitesse devient très élevée
+  for (var pi=0; pi<rObstacles.length; pi++){
+    var po = rObstacles[pi];
+    var poX1 = po.x - po.w/2, poX2 = (po.x+dx) + po.w/2;
+    var poY1 = rGroundY - po.h, poY2 = rGroundY;
+    if (rectsOverlap(cx1,cy1,cx2,cy2, poX1,poY1,poX2,poY2)){ endRodeo(); return; }
+  }
+
+  // collectibles : simple superposition, ramassage immédiat
+  for (var qi=rCollectibles.length-1; qi>=0; qi--){
+    var qc = rCollectibles[qi];
+    if (rectsOverlap(cx1,cy1,cx2,cy2, qc.x-9,qc.y-9,qc.x+9,qc.y+9)){
+      rScore += 25;
+      rCollectibles.splice(qi,1);
+      updateHUD(rScore, rBestCache);
+    }
+  }
+}
+
+function renderRodeo(){
+  var sky = ctx.createLinearGradient(0,0,0,rGroundY);
+  sky.addColorStop(0, '#FCE8B9');
+  sky.addColorStop(1, '#F6B183');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0,0,W,rGroundY);
+
+  // soleil couchant
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0,0,W,rGroundY); ctx.clip();
+  ctx.fillStyle = 'rgba(255,255,255,0.30)';
+  ctx.beginPath(); ctx.arc(W*0.76, rGroundY*0.62, Math.min(W,H)*0.13, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = PAL.mustard;
+  ctx.beginPath(); ctx.arc(W*0.76, rGroundY*0.62, Math.min(W,H)*0.10, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // dunes lointaines
+  rDunes.forEach(function(du){ drawDune(ctx, du.x, rGroundY, du.w, du.h, 'rgba(124,138,76,0.55)'); });
+
+  // sol
+  ctx.fillStyle = PAL.sand;
+  ctx.fillRect(0, rGroundY, W, H-rGroundY);
+  ctx.strokeStyle = 'rgba(74,47,35,0.3)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0,rGroundY); ctx.lineTo(W,rGroundY); ctx.stroke();
+
+  // marques au sol qui défilent (sensation de vitesse)
+  ctx.strokeStyle = 'rgba(74,47,35,0.18)'; ctx.lineWidth = 3;
+  var dashLen=22, gap=26, period=dashLen+gap;
+  var offset = rDistance % period;
+  for (var mx = -period; mx < W+period; mx += period){
+    var lx = mx - offset;
+    ctx.beginPath(); ctx.moveTo(lx, rGroundY+10); ctx.lineTo(lx+dashLen, rGroundY+10); ctx.stroke();
+  }
+
+  // ombre de contact au sol — indique visuellement la hauteur du saut
+  var jumpRatio = clamp((rGroundY - combi.y) / 130, 0, 1);
+  ctx.fillStyle = 'rgba(74,47,35,' + (0.28*(1-jumpRatio*0.7)).toFixed(2) + ')';
+  ctx.beginPath();
+  ctx.ellipse(combi.x, rGroundY+3, rCombiSize*0.30*(1-jumpRatio*0.35), rCombiSize*0.09*(1-jumpRatio*0.35), 0, 0, Math.PI*2);
+  ctx.fill();
+
+  rCollectibles.forEach(function(cl){ drawRodeoCollectible(ctx, cl.x, cl.y, cl.type); });
+
+  rObstacles.forEach(function(ob){
+    if (ob.type==='cactus') drawCactus(ctx, ob.x, rGroundY, ob.w, ob.h);
+    else if (ob.type==='rock') drawRockObstacle(ctx, ob.x, rGroundY, ob.w, ob.h);
+    else drawPotholeSide(ctx, ob.x, rGroundY, ob.w, ob.h);
+  });
+
+  drawCombiSide(ctx, combi.x, combi.y, rCombiSize, combi.tilt);
+}
+
+function endRodeo(){
+  running = false;
+  flashCrash();
+  var token = sessionToken;
+  setTimeout(function(){
+    if (token !== sessionToken) return;
+    finishRun('rodeo', rScore, 'CRASH DANS LE DÉSERT !');
+  }, 380);
+}
+
+/* ==========================================================================
    FIN DE PARTIE / EFFETS PARTAGÉS
    ========================================================================== */
 function flashCrash(){
@@ -1075,6 +1442,7 @@ canvasWrap.addEventListener('pointerdown', function(e){
   touchRefX = e.clientX; touchRefY = e.clientY;
   try{ canvasWrap.setPointerCapture(e.pointerId); }catch(err){}
   if (e.cancelable) e.preventDefault();
+  if (currentMode === 'rodeo') tryRodeoJump();
 });
 
 canvasWrap.addEventListener('pointermove', function(e){
@@ -1094,10 +1462,15 @@ canvasWrap.addEventListener('pointerup', function(e){
       setBeetleLane(beetle.targetLane + (dx>0?1:-1));
     }
   }
+  if (currentMode === 'rodeo') rodeoRelease();
   touchDown = false;
 });
-canvasWrap.addEventListener('pointercancel', function(){ touchDown = false; });
+canvasWrap.addEventListener('pointercancel', function(){
+  if (currentMode === 'rodeo') rodeoRelease();
+  touchDown = false;
+});
 
+var rodeoKeyHeld = false;
 window.addEventListener('keydown', function(e){
   if (!running) return;
   if (currentMode === 'snake'){
@@ -1108,6 +1481,17 @@ window.addEventListener('keydown', function(e){
   } else if (currentMode === 'highway'){
     if (e.key === 'ArrowLeft') setBeetleLane(beetle.targetLane-1);
     else if (e.key === 'ArrowRight') setBeetleLane(beetle.targetLane+1);
+  } else if (currentMode === 'rodeo'){
+    if ((e.key === ' ' || e.key === 'ArrowUp') && !rodeoKeyHeld){
+      rodeoKeyHeld = true;
+      tryRodeoJump();
+    }
+  }
+});
+window.addEventListener('keyup', function(e){
+  if (e.key === ' ' || e.key === 'ArrowUp'){
+    rodeoKeyHeld = false;
+    if (currentMode === 'rodeo') rodeoRelease();
   }
 });
 
@@ -1156,6 +1540,7 @@ function goToMenu(){
   gameOverPanel.classList.add('hidden');
   bestSnakeEl.textContent = getBest('snake');
   bestHighwayEl.textContent = getBest('highway');
+  bestRodeoEl.textContent = getBest('rodeo');
   showScreen('screen-menu');
 }
 
@@ -1169,10 +1554,14 @@ function playMode(mode){
     resetSnake();
     renderSnake();
     showHint('Glisse le doigt pour diriger le Combi');
-  } else {
+  } else if (mode === 'highway'){
     resetHighway();
     renderHighway();
     showHint('Glisse le doigt à gauche ou à droite pour changer de voie');
+  } else if (mode === 'rodeo'){
+    resetRodeo();
+    renderRodeo();
+    showHint('Touche l\'écran pour sauter, garde appuyé pour sauter plus haut');
   }
   running = false;
   startCountdown(function(){ running = true; });
@@ -1188,6 +1577,7 @@ for (var m=0;m<modeCards.length;m++){
 btnBack.addEventListener('click', function(){
   if (currentMode === 'snake') setBestIfHigher('snake', sScore);
   if (currentMode === 'highway') setBestIfHigher('highway', hScore);
+  if (currentMode === 'rodeo') setBestIfHigher('rodeo', rScore);
   goToMenu();
 });
 btnRetry.addEventListener('click', function(){ gameOverPanel.classList.add('hidden'); retry(); });
@@ -1201,6 +1591,7 @@ function loop(ts){
   if (running){
     if (currentMode === 'snake'){ updateSnake(dt*1000); renderSnake(); }
     else if (currentMode === 'highway'){ updateHighway(dt); renderHighway(); }
+    else if (currentMode === 'rodeo'){ updateRodeo(dt); renderRodeo(); }
   }
   requestAnimationFrame(loop);
 }
@@ -1209,6 +1600,7 @@ requestAnimationFrame(loop);
 /* ---------------------------------- INIT ---------------------------------- */
 bestSnakeEl.textContent = getBest('snake');
 bestHighwayEl.textContent = getBest('highway');
+bestRodeoEl.textContent = getBest('rodeo');
 drawMenuIcons();
 
 })();
