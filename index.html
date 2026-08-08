@@ -141,7 +141,12 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
 .mode-card[data-mode="rodeo"]::before{ background:var(--orange); }
 .mode-icon{ width:68px; height:68px; flex-shrink:0; display:block; border-radius:15px; background:var(--cream-dark); }
 .mode-info{ flex:1; min-width:0; }
-.mode-info h2{ font-size:15px; letter-spacing:.3px; color:var(--brown); margin-bottom:3px; }
+.mode-title-row{ display:flex; align-items:baseline; gap:7px; flex-wrap:wrap; margin-bottom:3px; }
+.mode-info h2{ font-size:15px; letter-spacing:.3px; color:var(--brown); margin:0; }
+.difficulty-tag{ font-size:9.5px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; white-space:nowrap; }
+.difficulty-easy{ color:var(--green-dark); }
+.difficulty-medium{ color:var(--orange); }
+.difficulty-hard{ color:var(--terracotta); }
 .mode-info p{ font-size:11.5px; color:var(--brown-light); margin-bottom:6px; }
 .mode-best{ font-size:10.5px; font-weight:700; color:var(--teal-dark); }
 .mode-best strong{ font-size:13px; color:var(--orange-dark); margin-left:4px; }
@@ -285,8 +290,11 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
         <button class="mode-card" data-mode="snake" type="button">
           <canvas class="mode-icon" id="iconSnake" width="120" height="120"></canvas>
           <div class="mode-info">
-            <h2>COMBI SNAKE</h2>
-            <p>Ramasse bidons &amp; boards, évite le mur</p>
+            <div class="mode-title-row">
+              <h2>COMBI SNAKE</h2>
+              <span class="difficulty-tag difficulty-easy">Facile</span>
+            </div>
+            <p>Ramasse bidons et boards sans jamais te mordre la queue</p>
             <div class="mode-best">Meilleur score <strong id="bestSnake">0</strong></div>
           </div>
           <span class="play-chip">JOUER ▶</span>
@@ -295,8 +303,11 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
         <button class="mode-card" data-mode="highway" type="button">
           <canvas class="mode-icon" id="iconHighway" width="120" height="120"></canvas>
           <div class="mode-info">
-            <h2>BEETLE HIGHWAY</h2>
-            <p>Change de voie, évite tout le monde</p>
+            <div class="mode-title-row">
+              <h2>BEETLE HIGHWAY</h2>
+              <span class="difficulty-tag difficulty-medium">Moyen</span>
+            </div>
+            <p>Slalome entre les voitures, la route accélère sans fin</p>
             <div class="mode-best">Meilleur score <strong id="bestHighway">0</strong></div>
           </div>
           <span class="play-chip">JOUER ▶</span>
@@ -305,8 +316,11 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
         <button class="mode-card" data-mode="rodeo" type="button">
           <canvas class="mode-icon" id="iconRodeo" width="120" height="120"></canvas>
           <div class="mode-info">
-            <h2>COMBI RODÉO</h2>
-            <p>Saute au bon moment, évite tout</p>
+            <div class="mode-title-row">
+              <h2>COMBI RODÉO</h2>
+              <span class="difficulty-tag difficulty-hard">Difficile</span>
+            </div>
+            <p>Un tap, un saut par-dessus cactus et rochers du désert</p>
             <div class="mode-best">Meilleur score <strong id="bestRodeo">0</strong></div>
           </div>
           <span class="play-chip">JOUER ▶</span>
@@ -1198,8 +1212,8 @@ function endHighway(){
    la fin de la partie.
    ========================================================================== */
 var rGroundY = 0, rCombiSize = 0;
-var combi, rObstacles, rCollectibles, rDunes, rScore, rDistance, rSpeed, rSpawnAcc, rDuneAcc, rCollectAcc, rBestCache;
-var R_BASE_SPEED = 260, R_ACCEL = 0.05, R_MIN_GAP = 210, R_MIN_GAP_TIME = 0.8;
+var combi, rObstacles, rCollectibles, rDunes, rScore, rDistance, rSpeed, rNextObstacleAt, rDuneAcc, rCollectAcc, rBestCache;
+var R_BASE_SPEED = 260, R_ACCEL = 0.05, R_MIN_GAP_TIME = 0.85;
 var R_GRAVITY = 2200, R_JUMP_VELOCITY = -700, R_JUMP_CUT_MULT = 2.3;
 var R_COMBI_X_RATIO = 0.24;
 
@@ -1217,7 +1231,8 @@ function resetRodeo(){
     { x: W*0.2, w: W*0.55, h: H*0.10 },
     { x: W*0.7, w: W*0.4, h: H*0.07 }
   ];
-  rScore = 0; rDistance = 0; rSpeed = R_BASE_SPEED; rSpawnAcc = 0; rDuneAcc = 0; rCollectAcc = 0;
+  rScore = 0; rDistance = 0; rSpeed = R_BASE_SPEED; rDuneAcc = 0; rCollectAcc = 0;
+  rNextObstacleAt = 420; // départ tranquille avant le premier obstacle
   rBestCache = getBest('rodeo');
   updateHUD(0, rBestCache);
 }
@@ -1236,21 +1251,30 @@ function rodeoRelease(){
   if (combi) combi.holding = false;
 }
 
+// Renvoie l'étendue horizontale totale du groupe qui vient d'être posé (1 ou 2 obstacles),
+// pour que updateRodeo puisse programmer le prochain groupe avec assez d'espace libre APRÈS
+// celui-ci — et pas seulement après son point de spawn (c'était le bug : un combo large
+// pouvait empiéter sur la marge prévue pour le groupe suivant).
 function spawnRodeoObstacle(){
   var roll = Math.random();
   var type = roll < 0.4 ? 'cactus' : (roll < 0.7 ? 'rock' : 'pothole');
   var oh = type==='cactus' ? rand(44,62) : (type==='rock' ? rand(30,42) : rand(16,22));
   var ow = type==='pothole' ? rand(48,66) : rand(24,32);
   rObstacles.push({ x: W+40, w:ow, h:oh, type:type });
+  var span = ow;
 
-  // parfois un second obstacle rapproché : force un saut plus long (garder le doigt appuyé)
-  if (rDistance > 500 && Math.random() < 0.24){
-    var gap = rand(64,92);
+  // Combo seulement à partir de cactus/rock (jamais un pothole, trop large, ce qui pouvait
+  // créer un écart total plus grand que ce qu'un saut peut couvrir). Écart resserré et
+  // vérifié par simulation pour rester toujours sautable avec une bonne marge.
+  if (type !== 'pothole' && rDistance > 500 && Math.random() < 0.24){
+    var gap = rand(34,50);
     var type2 = Math.random()<0.5 ? 'cactus' : 'rock';
     var h2 = type2==='cactus' ? rand(44,62) : rand(30,42);
     var w2 = rand(24,32);
     rObstacles.push({ x: W+40+ow+gap, w:w2, h:h2, type:type2 });
+    span = ow + gap + w2;
   }
+  return span;
 }
 
 function spawnRodeoCollectible(){
@@ -1296,13 +1320,15 @@ function updateRodeo(dt){
     rObstacles[oi].x -= dx;
     if (rObstacles[oi].x < -80) rObstacles.splice(oi,1);
   }
-  rSpawnAcc += dx;
-  // même principe de vérification anti-blocage que Beetle Highway : l'écart minimum entre
-  // deux obstacles grandit avec la vitesse pour garantir un temps de réaction constant.
-  var requiredGap = Math.max(R_MIN_GAP, rSpeed*R_MIN_GAP_TIME);
-  if (rSpawnAcc >= requiredGap){
-    rSpawnAcc = 0;
-    spawnRodeoObstacle();
+  // Système anti-blocage (corrigé) : le seuil minimum tient compte à la fois de la vitesse
+  // (temps de réaction constant) ET de la taille de la voiture (marge physique pour atterrir),
+  // et surtout de l'étendue réelle du groupe d'obstacles qu'on vient de poser — un combo large
+  // ne mange plus la marge prévue pour le suivant, ce qui causait les blocages.
+  if (rDistance >= rNextObstacleAt){
+    var groupSpan = spawnRodeoObstacle();
+    var minGapPx = rCombiSize * 2.2;
+    var requiredGap = Math.max(minGapPx, rSpeed*R_MIN_GAP_TIME);
+    rNextObstacleAt = rDistance + requiredGap + groupSpan;
   }
 
   // collectibles
