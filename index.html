@@ -173,6 +173,7 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
   background:var(--terracotta); color:var(--paper); font-size:17px; font-weight:900;
   display:flex; align-items:center; justify-content:center; flex-shrink:0;
 }
+#btnMute{ font-size:15px; background:var(--brown-light); }
 .hud-scores,.hud-best{ display:flex; flex-direction:column; align-items:center; line-height:1.15; min-width:56px; }
 .hud-scores{ align-items:flex-start; }
 .hud-best{ align-items:flex-end; }
@@ -337,6 +338,7 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
       <button id="btnBack" class="hud-btn" type="button" aria-label="Retour au menu">←</button>
       <div class="hud-scores"><span>SCORE</span><span id="hudScore">0</span></div>
       <div class="hud-best"><span>MEILLEUR</span><span id="hudBest">0</span></div>
+      <button id="btnMute" class="hud-btn" type="button" aria-label="Activer/couper le son">🔊</button>
     </header>
 
     <div id="canvasWrap">
@@ -427,6 +429,129 @@ function setBestIfHigher(mode, score){
   return false;
 }
 
+/* ==========================================================================
+   RETOUR SENSORIEL — sons synthétisés (Web Audio, aucun fichier externe)
+   et particules Canvas, réutilisés par les 3 jeux et le menu.
+   ========================================================================== */
+var SOUND_KEY = 'coxAttitude.sound.enabled';
+var soundEnabled = true;
+try{ var storedSound = localStorage.getItem(SOUND_KEY); if (storedSound !== null) soundEnabled = storedSound === '1'; }catch(e){}
+
+var audioCtx = null;
+function getAudioCtx(){
+  if (!audioCtx){
+    try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e){ audioCtx = null; }
+  }
+  return audioCtx;
+}
+// Les navigateurs bloquent l'audio tant qu'aucun geste utilisateur n'a eu lieu :
+// on tente de débloquer le contexte dès le tout premier contact avec l'écran.
+function unlockAudioOnce(){
+  var ac = getAudioCtx();
+  if (ac && ac.state === 'suspended') ac.resume();
+  document.removeEventListener('pointerdown', unlockAudioOnce);
+}
+document.addEventListener('pointerdown', unlockAudioOnce);
+
+function playTone(freq, duration, type, volume, slideTo){
+  if (!soundEnabled) return;
+  var ac = getAudioCtx();
+  if (!ac) return;
+  if (ac.state === 'suspended') ac.resume();
+  var osc = ac.createOscillator();
+  var gain = ac.createGain();
+  osc.type = type || 'square';
+  osc.frequency.setValueAtTime(freq, ac.currentTime);
+  if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, ac.currentTime + duration);
+  gain.gain.setValueAtTime(volume || 0.14, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+  osc.connect(gain); gain.connect(ac.destination);
+  osc.start(); osc.stop(ac.currentTime + duration);
+}
+
+function playNoise(duration, volume){
+  if (!soundEnabled) return;
+  var ac = getAudioCtx();
+  if (!ac) return;
+  if (ac.state === 'suspended') ac.resume();
+  var size = Math.max(1, Math.floor(ac.sampleRate * duration));
+  var buffer = ac.createBuffer(1, size, ac.sampleRate);
+  var data = buffer.getChannelData(0);
+  for (var i=0;i<size;i++){ data[i] = (Math.random()*2-1) * (1 - i/size); }
+  var src = ac.createBufferSource();
+  src.buffer = buffer;
+  var filter = ac.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(1100, ac.currentTime);
+  var gain = ac.createGain();
+  gain.gain.setValueAtTime(volume || 0.2, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+  src.connect(filter); filter.connect(gain); gain.connect(ac.destination);
+  src.start();
+}
+
+function sfxClick(){ playTone(680, 0.07, 'square', 0.10); }
+function sfxPickup(){ playTone(560, 0.10, 'square', 0.15, 900); }
+function sfxJump(){ playTone(340, 0.15, 'triangle', 0.15, 620); }
+function sfxLand(){ playTone(150, 0.07, 'sine', 0.09); }
+function sfxLaneChange(){ playTone(320, 0.05, 'square', 0.07, 220); }
+function sfxCountdownTick(){ playTone(440, 0.08, 'square', 0.09); }
+function sfxCountdownGo(){ playTone(660, 0.17, 'square', 0.14, 900); }
+function sfxCrash(){ playNoise(0.28, 0.22); playTone(170, 0.22, 'sawtooth', 0.11, 55); }
+function sfxRecord(){
+  playTone(660, 0.10, 'square', 0.12);
+  setTimeout(function(){ playTone(880, 0.10, 'square', 0.12); }, 90);
+  setTimeout(function(){ playTone(1100, 0.18, 'square', 0.12); }, 180);
+}
+
+function toggleSound(){
+  soundEnabled = !soundEnabled;
+  try{ localStorage.setItem(SOUND_KEY, soundEnabled ? '1' : '0'); }catch(e){}
+  if (btnMute) btnMute.textContent = soundEnabled ? '🔊' : '🔇';
+  sfxClick();
+}
+
+// --- Particules : petit système générique partagé par les 3 jeux ---
+var particles = [];
+function spawnParticles(x, y, colors, count, opts){
+  opts = opts || {};
+  for (var i=0;i<count;i++){
+    var angle = rand(0, Math.PI*2);
+    var speed = rand(opts.minSpeed!=null?opts.minSpeed:50, opts.maxSpeed!=null?opts.maxSpeed:150);
+    particles.push({
+      x:x, y:y,
+      vx: Math.cos(angle)*speed,
+      vy: Math.sin(angle)*speed - (opts.upBias||0),
+      life: 0,
+      maxLife: rand(opts.minLife!=null?opts.minLife:0.35, opts.maxLife!=null?opts.maxLife:0.6),
+      size: rand(opts.minSize!=null?opts.minSize:2, opts.maxSize!=null?opts.maxSize:4.5),
+      color: choice(colors)
+    });
+  }
+}
+function updateParticles(dt){
+  for (var i=particles.length-1;i>=0;i--){
+    var p = particles[i];
+    p.life += dt;
+    if (p.life >= p.maxLife){ particles.splice(i,1); continue; }
+    p.vy += 240*dt;
+    p.x += p.vx*dt; p.y += p.vy*dt;
+  }
+}
+function renderParticles(ctx){
+  for (var i=0;i<particles.length;i++){
+    var p = particles[i];
+    var t = 1 - p.life/p.maxLife;
+    ctx.globalAlpha = clamp(t,0,1);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(0.4,p.size*t), 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
 /* ------------------------------- ÉLÉMENTS DOM ------------------------------- */
 var canvas = document.getElementById('gameCanvas');
 var ctx = canvas.getContext('2d');
@@ -434,6 +559,7 @@ var canvasWrap = document.getElementById('canvasWrap');
 var hudScoreEl = document.getElementById('hudScore');
 var hudBestEl = document.getElementById('hudBest');
 var btnBack = document.getElementById('btnBack');
+var btnMute = document.getElementById('btnMute');
 var gameOverPanel = document.getElementById('gameOverPanel');
 var goTitle = document.getElementById('goTitle');
 var goScore = document.getElementById('goScore');
@@ -931,6 +1057,7 @@ function resetSnake(){
   };
   sPrevBody = snake.body.map(function(s){ return {x:s.x,y:s.y}; });
   sInputQueue = [];
+  particles.length = 0;
   sScore = 0; sTick = 170; sAcc = 0; sFirstInput = false;
   sBestCache = getBest('snake');
   placeSnakeFood();
@@ -973,10 +1100,22 @@ function updateSnake(dtMs){
 
   var head = snake.body[0];
   var nx = head.x + snake.dir.x, ny = head.y + snake.dir.y;
-  if (nx < 0 || nx >= sGrid.cols || ny < 0 || ny >= sGrid.rows){ endSnake(); return; }
-  if (snake.body.some(function(s){ return s.x===nx && s.y===ny; })){ endSnake(); return; }
+  if (nx < 0 || nx >= sGrid.cols || ny < 0 || ny >= sGrid.rows){
+    var hx = sGrid.ox + clamp(nx,0,sGrid.cols-1)*sGrid.cell + sGrid.cell/2;
+    var hy = sGrid.oy + clamp(ny,0,sGrid.rows-1)*sGrid.cell + sGrid.cell/2;
+    endSnake(hx, hy); return;
+  }
+  if (snake.body.some(function(s){ return s.x===nx && s.y===ny; })){
+    var hx2 = sGrid.ox + nx*sGrid.cell + sGrid.cell/2;
+    var hy2 = sGrid.oy + ny*sGrid.cell + sGrid.cell/2;
+    endSnake(hx2, hy2); return;
+  }
   snake.body.unshift({x:nx,y:ny});
   if (nx === sFood.x && ny === sFood.y){
+    var fx = sGrid.ox + sFood.x*sGrid.cell + sGrid.cell/2;
+    var fy = sGrid.oy + sFood.y*sGrid.cell + sGrid.cell/2;
+    sfxPickup();
+    spawnParticles(fx, fy, [PAL.mustard, PAL.terracotta, PAL.paper], 10, { upBias:40, minLife:0.3, maxLife:0.5 });
     sScore += 10;
     sTick = Math.max(95, 170 - Math.floor(sScore/40)*6);
     placeSnakeFood();
@@ -1035,9 +1174,9 @@ function renderSnake(){
   drawCombi(ctx, sGrid.ox+rh.x*sGrid.cell+sGrid.cell/2, sGrid.oy+rh.y*sGrid.cell+sGrid.cell/2, sGrid.cell*1.05, headAngle);
 }
 
-function endSnake(){
+function endSnake(hx, hy){
   running = false;
-  flashCrash();
+  flashCrash(hx, hy);
   var token = sessionToken;
   setTimeout(function(){
     if (token !== sessionToken) return;
@@ -1070,6 +1209,7 @@ function resetHighway(){
   beetle = { x: laneCenterX(1), targetLane:1, tilt:0 };
   hObstacles = [];
   hDecor = [];
+  particles.length = 0;
   hScore = 0; hDistance = 0; hSpeed = H_BASE_SPEED; hSpawnAcc = 0; hFirstInput = false;
   hLastOpenLanes = null;
   hBestCache = getBest('highway');
@@ -1077,7 +1217,12 @@ function resetHighway(){
 }
 
 function setBeetleLane(lane){
-  beetle.targetLane = clamp(lane, 0, hLanes.count-1);
+  var newLane = clamp(lane, 0, hLanes.count-1);
+  if (newLane !== beetle.targetLane){
+    sfxLaneChange();
+    spawnParticles(beetle.x, H*BEETLE_Y_RATIO+16, [PAL.roadLine, PAL.sand], 4, { minSpeed:15, maxSpeed:50, minLife:0.18, maxLife:0.3, minSize:1.5, maxSize:3 });
+  }
+  beetle.targetLane = newLane;
   if (!hFirstInput){ hFirstInput = true; hideHint(); }
 }
 
@@ -1162,7 +1307,7 @@ function updateHighway(dt){
     var oh = ow * (obs.type === 'slowcar' ? 1.3 : 0.8);
     var ox1 = ox-ow/2, ox2 = ox+ow/2;
     var oy1 = (obs.y - dy) - oh/2, oy2 = obs.y + oh/2; // balayage sur tout le trajet du frame
-    if (rectsOverlap(bx1,by1,bx2,by2,ox1,oy1,ox2,oy2)){ endHighway(); return; }
+    if (rectsOverlap(bx1,by1,bx2,by2,ox1,oy1,ox2,oy2)){ endHighway(beetle.x, beetleY); return; }
   }
 }
 
@@ -1194,9 +1339,9 @@ function renderHighway(){
   drawBeetleTopDown(ctx, beetle.x, H*BEETLE_Y_RATIO, hLanes.width*BEETLE_W_RATIO, beetle.tilt);
 }
 
-function endHighway(){
+function endHighway(hx, hy){
   running = false;
-  flashCrash();
+  flashCrash(hx, hy);
   var token = sessionToken;
   setTimeout(function(){
     if (token !== sessionToken) return;
@@ -1231,6 +1376,7 @@ function resetRodeo(){
     { x: W*0.2, w: W*0.55, h: H*0.10 },
     { x: W*0.7, w: W*0.4, h: H*0.07 }
   ];
+  particles.length = 0;
   rScore = 0; rDistance = 0; rSpeed = R_BASE_SPEED; rDuneAcc = 0; rCollectAcc = 0;
   rNextObstacleAt = 420; // départ tranquille avant le premier obstacle
   rBestCache = getBest('rodeo');
@@ -1244,6 +1390,8 @@ function tryRodeoJump(){
     combi.grounded = false;
     combi.velY = R_JUMP_VELOCITY;
     combi.holding = true;
+    sfxJump();
+    spawnParticles(combi.x-rCombiSize*0.12, rGroundY, [PAL.sand, PAL.creamDark], 6, { minSpeed:20, maxSpeed:70, minLife:0.2, maxLife:0.35, upBias:10 });
   }
 }
 
@@ -1303,6 +1451,8 @@ function updateRodeo(dt){
       combi.y = rGroundY;
       combi.velY = 0;
       combi.grounded = true;
+      sfxLand();
+      spawnParticles(combi.x, rGroundY, [PAL.sand, PAL.creamDark], 7, { minSpeed:25, maxSpeed:80, minLife:0.2, maxLife:0.32 });
     }
   }
   combi.tilt = clamp(-combi.velY*0.00055, -0.30, 0.38);
@@ -1355,7 +1505,7 @@ function updateRodeo(dt){
     var po = rObstacles[pi];
     var poX1 = po.x - po.w/2, poX2 = (po.x+dx) + po.w/2;
     var poY1 = rGroundY - po.h, poY2 = rGroundY;
-    if (rectsOverlap(cx1,cy1,cx2,cy2, poX1,poY1,poX2,poY2)){ endRodeo(); return; }
+    if (rectsOverlap(cx1,cy1,cx2,cy2, poX1,poY1,poX2,poY2)){ endRodeo(combi.x, combi.y-combiH/2); return; }
   }
 
   // collectibles : simple superposition, ramassage immédiat
@@ -1363,6 +1513,8 @@ function updateRodeo(dt){
     var qc = rCollectibles[qi];
     if (rectsOverlap(cx1,cy1,cx2,cy2, qc.x-9,qc.y-9,qc.x+9,qc.y+9)){
       rScore += 25;
+      sfxPickup();
+      spawnParticles(qc.x, qc.y, [PAL.mustard, PAL.terracotta, PAL.paper], 10, { upBias:30, minLife:0.3, maxLife:0.5 });
       rCollectibles.splice(qi,1);
       updateHUD(rScore, rBestCache);
     }
@@ -1421,9 +1573,9 @@ function renderRodeo(){
   drawCombiSide(ctx, combi.x, combi.y, rCombiSize, combi.tilt);
 }
 
-function endRodeo(){
+function endRodeo(hx, hy){
   running = false;
-  flashCrash();
+  flashCrash(hx, hy);
   var token = sessionToken;
   setTimeout(function(){
     if (token !== sessionToken) return;
@@ -1434,13 +1586,18 @@ function endRodeo(){
 /* ==========================================================================
    FIN DE PARTIE / EFFETS PARTAGÉS
    ========================================================================== */
-function flashCrash(){
+function flashCrash(x, y){
+  sfxCrash();
   canvasWrap.classList.add('crash');
   setTimeout(function(){ canvasWrap.classList.remove('crash'); }, 450);
+  if (typeof x === 'number' && typeof y === 'number'){
+    spawnParticles(x, y, [PAL.brown, PAL.brownLight, PAL.terracotta], 16, { minSpeed:90, maxSpeed:220, minLife:0.4, maxLife:0.7, minSize:2.5, maxSize:5.5 });
+  }
 }
 
 function finishRun(mode, score, title){
   var isRecord = setBestIfHigher(mode, score);
+  if (isRecord) sfxRecord();
   goTitle.textContent = title;
   goScore.textContent = score;
   goBest.textContent = getBest(mode);
@@ -1535,6 +1692,7 @@ function startCountdown(onDone){
   function step(){
     if (token !== sessionToken) return;
     countdownEl.textContent = seq[i];
+    if (i < seq.length-1) sfxCountdownTick(); else sfxCountdownGo();
     i++;
     if (i < seq.length){
       setTimeout(step, 550);
@@ -1598,26 +1756,32 @@ function retry(){ playMode(currentMode); }
 /* --------------------------------- BOUTONS --------------------------------- */
 var modeCards = document.querySelectorAll('.mode-card');
 for (var m=0;m<modeCards.length;m++){
-  modeCards[m].addEventListener('click', function(){ playMode(this.getAttribute('data-mode')); });
+  modeCards[m].addEventListener('click', function(){ sfxClick(); playMode(this.getAttribute('data-mode')); });
 }
 btnBack.addEventListener('click', function(){
+  sfxClick();
   if (currentMode === 'snake') setBestIfHigher('snake', sScore);
   if (currentMode === 'highway') setBestIfHigher('highway', hScore);
   if (currentMode === 'rodeo') setBestIfHigher('rodeo', rScore);
   goToMenu();
 });
-btnRetry.addEventListener('click', function(){ gameOverPanel.classList.add('hidden'); retry(); });
-btnMenu.addEventListener('click', goToMenu);
+btnRetry.addEventListener('click', function(){ sfxClick(); gameOverPanel.classList.add('hidden'); retry(); });
+btnMenu.addEventListener('click', function(){ sfxClick(); goToMenu(); });
+btnMute.addEventListener('click', toggleSound);
 
 /* ------------------------------- BOUCLE PRINCIPALE ------------------------------- */
 var lastTs = 0;
 function loop(ts){
   var dt = Math.min(0.05, lastTs ? (ts-lastTs)/1000 : 0);
   lastTs = ts;
-  if (running){
-    if (currentMode === 'snake'){ updateSnake(dt*1000); renderSnake(); }
-    else if (currentMode === 'highway'){ updateHighway(dt); renderHighway(); }
-    else if (currentMode === 'rodeo'){ updateRodeo(dt); renderRodeo(); }
+  // Les particules continuent d'animer même juste après la fin de partie (running=false),
+  // le temps que l'effet d'impact se termine, sans quoi elles resteraient figées à l'écran.
+  if (running || particles.length){
+    if (currentMode === 'snake'){ if (running) updateSnake(dt*1000); renderSnake(); }
+    else if (currentMode === 'highway'){ if (running) updateHighway(dt); renderHighway(); }
+    else if (currentMode === 'rodeo'){ if (running) updateRodeo(dt); renderRodeo(); }
+    updateParticles(dt);
+    renderParticles(ctx);
   }
   requestAnimationFrame(loop);
 }
@@ -1627,6 +1791,7 @@ requestAnimationFrame(loop);
 bestSnakeEl.textContent = getBest('snake');
 bestHighwayEl.textContent = getBest('highway');
 bestRodeoEl.textContent = getBest('rodeo');
+btnMute.textContent = soundEnabled ? '🔊' : '🔇';
 drawMenuIcons();
 
 })();
