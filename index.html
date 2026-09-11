@@ -38,7 +38,7 @@ p,h1,h2{ margin:0; }
   --brown:#4A2F23;
   --brown-light:#6B4A38;
   --sand:#E7C98F;
-  --road:#8C7C68;
+  --road:#77664F;
   --road-line:#F3E3C0;
   --green:#7C8A4C;
   --green-dark:#5E6B38;
@@ -56,16 +56,37 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
   background:var(--cream);
   box-shadow:0 0 60px rgba(0,0,0,.55);
 }
+/* Grain de papier — fine texture superposée à toute l'interface pour un rendu
+   "affiche imprimée" plutôt qu'un aplat vectoriel plat. */
+#app::after{
+  content:""; position:absolute; inset:0; z-index:60; pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:140px 140px;
+  mix-blend-mode:multiply; opacity:.05;
+}
 
-.screen{ position:absolute; inset:0; display:none; flex-direction:column; }
-.screen.is-active{ display:flex; }
+.screen{
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  opacity:0; visibility:hidden;
+  transition:opacity .25s ease, visibility 0s linear .25s;
+}
+.screen.is-active{ opacity:1; visibility:visible; transition:opacity .25s ease, visibility 0s linear 0s; }
 
 /* ---------------------------------- MENU ---------------------------------- */
-#screen-menu{ background:var(--cream); }
+#screen-menu{ background:linear-gradient(180deg, var(--cream) 0%, var(--cream) 55%, var(--sand) 100%); }
+
+.mountains{ position:absolute; left:0; bottom:44%; width:100%; height:34%; pointer-events:none; }
+.lake{
+  position:absolute; left:0; right:0; bottom:30%; height:20%; pointer-events:none;
+  background:linear-gradient(180deg, rgba(46,140,130,0.5), rgba(31,108,100,0.62));
+  border-top:1px solid rgba(251,240,218,0.4);
+}
+.lake-glints{ position:absolute; left:0; bottom:30%; width:100%; height:20%; pointer-events:none; }
+.bunting{ position:absolute; left:0; top:0; width:100%; height:26px; z-index:3; pointer-events:none; }
 
 .menu-scene{
   position:relative; flex-shrink:0;
-  height:36%; min-height:200px; max-height:280px;
+  height:40%; min-height:225px; max-height:310px;
   overflow:hidden;
   background:linear-gradient(180deg,#FCE8B9,#F6B183 78%,#E9A468);
 }
@@ -96,7 +117,7 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
 .hill-back{ height:64px; bottom:24px; background:var(--green); opacity:.9; }
 .hill-front{ height:50px; bottom:0; background:var(--green-dark); }
 
-.flower{ position:absolute; bottom:10px; width:22px; height:22px; }
+.flower{ position:absolute; bottom:10px; width:22px; height:22px; z-index:2; }
 .flower1{ left:9%; transform:scale(.85); }
 .flower2{ right:11%; transform:scale(1.05); }
 .road-ribbon{ position:absolute; left:0; bottom:0; width:100%; height:78%; z-index:1; pointer-events:none; }
@@ -105,25 +126,21 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
   flex:1; min-height:0; display:flex; flex-direction:column; align-items:center;
   padding:16px 20px 20px; overflow-y:auto; position:relative; z-index:2; margin-top:-16px;
 }
-.title-wrap{ position:relative; display:inline-block; }
+.title-wrap{ position:relative; display:inline-block; margin-bottom:20px; transform:rotate(-1.6deg); }
 .title{ text-align:center; margin:2px 0 4px; line-height:.9; }
 .title-line1,.title-line2{
   display:block; font-weight:900; letter-spacing:1.5px;
   -webkit-text-stroke:1px var(--brown);
 }
 .title-line1{
-  font-size:clamp(24px,7.5vw,30px); color:var(--paper);
+  font-size:clamp(26px,8vw,32px); color:var(--paper);
   text-shadow:2px 2px 0 var(--brown), 4px 4px 0 rgba(74,47,35,.3);
 }
 .title-line2{
-  font-size:clamp(32px,10vw,40px); color:var(--teal);
-  text-shadow:2px 2px 0 var(--brown), 4px 4px 0 rgba(74,47,35,.3);
+  font-size:clamp(38px,12vw,48px); color:var(--teal);
+  text-shadow:3px 3px 0 var(--brown), 5px 5px 0 rgba(74,47,35,.3);
 }
 .ladybug-deco{ position:absolute; width:30px; height:30px; top:-8px; right:-24px; transform:rotate(16deg); filter:drop-shadow(1px 2px 0 rgba(74,47,35,.35)); }
-
-.title-divider{ display:flex; gap:6px; align-items:center; justify-content:center; margin:10px 0 18px; }
-.title-divider span{ display:block; width:13px; height:5px; border-radius:3px; background:var(--mustard-dark); }
-.title-divider span:nth-child(3){ width:24px; background:var(--terracotta); }
 
 .mode-cards{ width:100%; display:flex; flex-direction:column; gap:14px; }
 .mode-card{
@@ -172,7 +189,10 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
   width:36px; height:36px; border-radius:12px; border:2px solid var(--paper);
   background:var(--terracotta); color:var(--paper); font-size:17px; font-weight:900;
   display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  box-shadow:2px 2px 0 rgba(0,0,0,.3);
+  transition:transform .08s ease, box-shadow .08s ease;
 }
+.hud-btn:active{ transform:translate(2px,2px); box-shadow:0 0 0 rgba(0,0,0,0); }
 #btnMute{ font-size:15px; background:var(--brown-light); }
 .hud-scores,.hud-best{ display:flex; flex-direction:column; align-items:center; line-height:1.15; min-width:56px; }
 .hud-scores{ align-items:flex-start; }
@@ -184,8 +204,9 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
 #gameCanvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
 
 @keyframes crashFlash{
-  0%{ box-shadow:inset 0 0 0 10px rgba(193,67,46,.95); }
-  100%{ box-shadow:inset 0 0 0 10px rgba(193,67,46,0); }
+  0%{ box-shadow:inset 0 0 0 10px rgba(193,67,46,.95); transform:scale(.97); }
+  35%{ transform:scale(1.012); }
+  100%{ box-shadow:inset 0 0 0 10px rgba(193,67,46,0); transform:scale(1); }
 }
 #canvasWrap.crash{ animation:crashFlash .45s ease-out; }
 
@@ -205,19 +226,41 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
 }
 #countdown.show{ opacity:1; }
 
-.panel{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(30,20,14,.6); z-index:10; }
+.panel{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(30,20,14,.6); z-index:10; animation:panelBgFade .3s ease; }
 .panel.hidden{ display:none; }
+@keyframes panelBgFade{ from{ background:rgba(30,20,14,0); } }
+@keyframes panelPop{
+  0%{ transform:scale(.8) translateY(14px); opacity:0; }
+  65%{ transform:scale(1.035) translateY(-3px); opacity:1; }
+  100%{ transform:scale(1) translateY(0); opacity:1; }
+}
 .panel-card{
   width:82%; max-width:320px; background:var(--paper); border:3px solid var(--brown);
   border-radius:20px; box-shadow:6px 6px 0 var(--brown); padding:24px 22px; text-align:center;
+  animation:panelPop .38s cubic-bezier(.22,1.4,.4,1) both;
 }
 .panel-card h2{ font-size:19px; color:var(--terracotta); letter-spacing:.5px; margin-bottom:10px; }
-.badge{ display:inline-block; margin-bottom:10px; padding:4px 11px; background:var(--mustard); border:2px solid var(--brown); border-radius:20px; font-size:10.5px; font-weight:800; letter-spacing:.3px; }
+.badge{
+  position:relative; display:inline-block; margin-bottom:14px; padding:7px 18px 6px;
+  background:var(--mustard); border:2px solid var(--brown); color:var(--brown);
+  clip-path:polygon(6% 2%,50% 0,94% 2%,100% 30%,98% 70%,100% 100%,50% 96%,0 100%,2% 70%,0 30%);
+  font-size:10.5px; font-weight:800; letter-spacing:.4px;
+  transform:rotate(-2.5deg);
+  animation:badgePop .4s .05s cubic-bezier(.22,1.4,.4,1) both, badgeGlow 1.6s 0.45s ease-in-out infinite;
+}
 .badge.hidden{ display:none; }
+@keyframes badgePop{ 0%{ transform:rotate(-2.5deg) scale(0); } 70%{ transform:rotate(-2.5deg) scale(1.18); } 100%{ transform:rotate(-2.5deg) scale(1); } }
+@keyframes badgeGlow{ 0%,100%{ box-shadow:0 0 0 rgba(227,167,62,0); } 50%{ box-shadow:0 0 13px rgba(227,167,62,.9); } }
 .go-score,.go-best{ font-size:13.5px; color:var(--brown-light); margin:3px 0; }
 .go-score span,.go-best span{ font-weight:900; color:var(--teal-dark); font-size:19px; }
-.panel-actions{ display:flex; gap:10px; margin-top:18px; }
-.btn{ flex:1; padding:12px 0; border-radius:14px; border:2px solid var(--brown); font-weight:900; font-size:12.5px; letter-spacing:.4px; }
+.panel-actions{ display:flex; gap:12px; margin-top:18px; }
+.btn{
+  flex:1; padding:12px 0; border-radius:14px; border:2px solid var(--brown);
+  font-weight:900; font-size:12.5px; letter-spacing:.4px;
+  box-shadow:3px 3px 0 var(--brown);
+  transition:transform .08s ease, box-shadow .08s ease;
+}
+.btn:active{ transform:translate(3px,3px); box-shadow:0 0 0 var(--brown); }
 .btn-primary{ background:var(--orange); color:var(--white); }
 .btn-secondary{ background:var(--cream-dark); color:var(--brown); }
 
@@ -249,10 +292,42 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
     <div class="menu-scene">
       <div class="sun-rays"></div>
       <div class="sun"></div>
+      <svg class="mountains" viewBox="0 0 300 90" preserveAspectRatio="none" aria-hidden="true">
+        <polygon points="0,90 0,58 22,32 40,48 68,14 92,44 118,24 148,50 172,18 198,42 224,16 252,46 278,26 300,52 300,90" fill="#8CA0A8" opacity="0.5"/>
+        <polygon points="0,90 0,70 28,44 58,62 88,36 122,60 158,40 192,58 226,36 262,57 300,42 300,90" fill="#6E8894" opacity="0.68"/>
+      </svg>
       <div class="cloud cloud1"></div>
       <div class="cloud cloud2"></div>
+      <div class="lake"></div>
+      <svg class="lake-glints" viewBox="0 0 300 40" preserveAspectRatio="none" aria-hidden="true">
+        <rect x="129" y="1" width="7" height="7" fill="#FFF0C4" opacity="0.55"/>
+        <rect x="138" y="12" width="11" height="4.5" fill="#FFF0C4" opacity="0.42"/>
+        <rect x="124" y="21" width="15" height="4" fill="#FFF0C4" opacity="0.35"/>
+        <rect x="38" y="9" width="20" height="2.5" fill="#FBF0DA" opacity="0.32"/>
+        <rect x="205" y="17" width="24" height="2.5" fill="#FBF0DA" opacity="0.32"/>
+        <rect x="70" y="24" width="14" height="2" fill="#FBF0DA" opacity="0.28"/>
+      </svg>
       <div class="hill hill-back"></div>
       <div class="hill hill-front"></div>
+      <svg class="bunting" viewBox="0 0 300 26" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" y1="2" x2="300" y2="2" stroke="#4A2F23" stroke-width="1.2" opacity="0.55"/>
+        <g opacity="0.94">
+          <polygon points="6,2 20,2 13,19" fill="#DB6B34"/>
+          <polygon points="28,2 42,2 35,19" fill="#2E8C82"/>
+          <polygon points="50,2 64,2 57,19" fill="#E3A73E"/>
+          <polygon points="72,2 86,2 79,19" fill="#C1502E"/>
+          <polygon points="94,2 108,2 101,19" fill="#DB6B34"/>
+          <polygon points="116,2 130,2 123,19" fill="#2E8C82"/>
+          <polygon points="138,2 152,2 145,19" fill="#E3A73E"/>
+          <polygon points="160,2 174,2 167,19" fill="#C1502E"/>
+          <polygon points="182,2 196,2 189,19" fill="#DB6B34"/>
+          <polygon points="204,2 218,2 211,19" fill="#2E8C82"/>
+          <polygon points="226,2 240,2 233,19" fill="#E3A73E"/>
+          <polygon points="248,2 262,2 255,19" fill="#C1502E"/>
+          <polygon points="270,2 284,2 277,19" fill="#DB6B34"/>
+          <polygon points="292,2 300,2 296,19" fill="#2E8C82"/>
+        </g>
+      </svg>
       <svg class="road-ribbon" viewBox="0 0 300 210" preserveAspectRatio="none" aria-hidden="true">
         <polygon points="86,210 174,210 155,84 105,84" fill="#F3E3C0" opacity="0.55"/>
         <line x1="129" y1="205" x2="151" y2="88" stroke="#4A2F23" stroke-width="2" stroke-dasharray="7 8" opacity="0.35"/>
@@ -285,7 +360,6 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
           <circle cx="20" cy="31" r="2" fill="#2B1B14"/>
         </svg>
       </div>
-      <div class="title-divider" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
 
       <div class="mode-cards">
         <button class="mode-card" data-mode="snake" type="button">
@@ -409,7 +483,7 @@ var PAL = {
   orange:'#DB6B34', orangeDark:'#B84E22',
   teal:'#2E8C82', tealDark:'#1F6C64',
   terracotta:'#C1502E', brown:'#4A2F23', brownLight:'#6B4A38',
-  sand:'#E7C98F', road:'#8C7C68', roadLine:'#F3E3C0',
+  sand:'#E7C98F', road:'#77664F', roadLine:'#F3E3C0',
   green:'#7C8A4C', greenDark:'#5E6B38',
   white:'#FFF8EC', glass:'#345C63'
 };
@@ -492,13 +566,13 @@ function playNoise(duration, volume){
 }
 
 function sfxClick(){ playTone(680, 0.07, 'square', 0.10); }
-function sfxPickup(){ playTone(560, 0.10, 'square', 0.15, 900); }
-function sfxJump(){ playTone(340, 0.15, 'triangle', 0.15, 620); }
+function sfxPickup(){ playTone(560, 0.10, 'square', 0.15, 900); vibrate(10); }
+function sfxJump(){ playTone(340, 0.15, 'triangle', 0.15, 620); vibrate(8); }
 function sfxLand(){ playTone(150, 0.07, 'sine', 0.09); }
 function sfxLaneChange(){ playTone(320, 0.05, 'square', 0.07, 220); }
 function sfxCountdownTick(){ playTone(440, 0.08, 'square', 0.09); }
 function sfxCountdownGo(){ playTone(660, 0.17, 'square', 0.14, 900); }
-function sfxCrash(){ playNoise(0.28, 0.22); playTone(170, 0.22, 'sawtooth', 0.11, 55); }
+function sfxCrash(){ playNoise(0.28, 0.22); playTone(170, 0.22, 'sawtooth', 0.11, 55); vibrate([15,40,15]); }
 function sfxRecord(){
   playTone(660, 0.10, 'square', 0.12);
   setTimeout(function(){ playTone(880, 0.10, 'square', 0.12); }, 90);
@@ -550,6 +624,48 @@ function renderParticles(ctx){
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+}
+
+// --- Popups de score : petit "+10" / "+25" qui monte et s'efface au ramassage,
+// pour rendre le gain de points plus lisible et satisfaisant qu'un simple chiffre au HUD.
+var scorePopups = [];
+function spawnScorePopup(x, y, text, color){
+  scorePopups.push({ x:x, y:y, text:text, color:color||PAL.tealDark, life:0, maxLife:0.75 });
+}
+function updateScorePopups(dt){
+  for (var i=scorePopups.length-1;i>=0;i--){
+    var p = scorePopups[i];
+    p.life += dt;
+    if (p.life >= p.maxLife){ scorePopups.splice(i,1); continue; }
+    p.y -= 40*dt;
+  }
+}
+function renderScorePopups(ctx){
+  for (var i=0;i<scorePopups.length;i++){
+    var p = scorePopups[i];
+    var t = p.life / p.maxLife;
+    var scale = t < 0.22 ? lerp(0.4,1,t/0.22) : 1;
+    var alpha = t > 0.55 ? clamp(1-(t-0.55)/0.45,0,1) : 1;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(p.x, p.y);
+    ctx.scale(scale, scale);
+    ctx.font = "900 15px 'Arial Rounded MT Bold', Arial, sans-serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(251,240,218,0.92)';
+    ctx.strokeText(p.text, 0, 0);
+    ctx.fillStyle = p.color;
+    ctx.fillText(p.text, 0, 0);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// --- Retour haptique léger (mobiles compatibles) : accompagne les sons sans en dépendre.
+function vibrate(pattern){
+  try{ if (navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
 }
 
 /* ------------------------------- ÉLÉMENTS DOM ------------------------------- */
@@ -614,27 +730,61 @@ function drawCombi(ctx, cx, cy, size, angle, tone){
   roundRectPath(ctx, -w/2, -h/2, w, h, h*0.32);
   ctx.fillStyle = tone.trim;
   ctx.fill();
+  // reflet de tôle bombée (centre clair, bords plus sombres) façon carrosserie au soleil couchant
+  var sheen = ctx.createLinearGradient(0,-h/2,0,h/2);
+  sheen.addColorStop(0,'rgba(0,0,0,0.14)');
+  sheen.addColorStop(0.5,'rgba(255,255,255,0.24)');
+  sheen.addColorStop(1,'rgba(0,0,0,0.14)');
+  ctx.fillStyle = sheen; ctx.fill();
   ctx.lineWidth = 1.4;
   ctx.strokeStyle = PAL.brown;
+  ctx.stroke();
+
+  // liseré fin le long de la cassure 2 tons (pinstripe, détail carrossier d'époque)
+  ctx.strokeStyle = 'rgba(251,240,218,0.85)'; ctx.lineWidth = 1;
+  roundRectPath(ctx, -w*0.42, -h*0.36, w*0.60, h*0.72, h*0.19);
   ctx.stroke();
 
   // pavillon crème encastré (s'arrête avant le museau pour garder la bande 2 tons visible devant)
   roundRectPath(ctx, -w*0.42, -h*0.34, w*0.60, h*0.68, h*0.18);
   ctx.fillStyle = tone.body;
   ctx.fill();
+  var roofSheen = ctx.createLinearGradient(0,-h*0.34,0,h*0.34);
+  roofSheen.addColorStop(0,'rgba(0,0,0,0.05)');
+  roofSheen.addColorStop(0.5,'rgba(255,255,255,0.4)');
+  roofSheen.addColorStop(1,'rgba(0,0,0,0.05)');
+  ctx.fillStyle = roofSheen; ctx.fill();
 
-  // roues aux quatre coins
-  ctx.fillStyle = PAL.brown;
+  // ligne de portière latérale + poignée
+  ctx.strokeStyle = 'rgba(74,47,35,0.28)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-w*0.06,-h/2+2); ctx.lineTo(-w*0.06,h/2-2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-w*0.16,-h*0.06); ctx.lineTo(-w*0.05,-h*0.06); ctx.stroke();
+
+  // roues aux quatre coins, flanc blanc (whitewall)
   var wheelR = h * 0.15;
   var wheelPos = [[-w*0.32,-h*0.5],[-w*0.32,h*0.5],[w*0.32,-h*0.5],[w*0.32,h*0.5]];
   for (var i=0;i<wheelPos.length;i++){
     var p = wheelPos[i];
+    ctx.fillStyle = PAL.brown;
     roundRectPath(ctx, p[0]-wheelR, p[1]-wheelR*0.62, wheelR*2, wheelR*1.24, wheelR*0.5);
+    ctx.fill();
+    ctx.fillStyle = PAL.paper;
+    roundRectPath(ctx, p[0]-wheelR*0.62, p[1]-wheelR*0.4, wheelR*1.24, wheelR*0.8, wheelR*0.35);
     ctx.fill();
   }
 
+  // pare-chocs chromé avant
+  ctx.strokeStyle = PAL.paper; ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.moveTo(w*0.49, -h*0.20); ctx.lineTo(w*0.49, h*0.20); ctx.stroke();
+
   // pare-brise "splitscreen" (grand — signature du Combi) — le "devant" est vers +x
   ctx.fillStyle = PAL.glass;
+  roundRectPath(ctx, w*0.10, -h*0.32, w*0.19, h*0.64, 5);
+  ctx.fill();
+  var glassSheen = ctx.createLinearGradient(w*0.10,0,w*0.29,0);
+  glassSheen.addColorStop(0,'rgba(255,255,255,0.32)');
+  glassSheen.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle = glassSheen;
   roundRectPath(ctx, w*0.10, -h*0.32, w*0.19, h*0.64, 5);
   ctx.fill();
   ctx.strokeStyle = 'rgba(0,0,0,0.28)';
@@ -702,40 +852,79 @@ function drawTrailer(ctx, cx, cy, size, angle, idx){
 }
 
 function drawGasCan(ctx, cx, cy, size){
-  var w = size*0.6, h = size*0.6;
+  var w = size*0.58, h = size*0.62;
   ctx.save();
   ctx.translate(cx, cy);
   ctx.fillStyle = 'rgba(74,47,35,0.18)';
-  roundRectPath(ctx, -w/2+2, -h/2+3, w, h, 4);
+  roundRectPath(ctx, -w/2+2, -h/2+3, w, h, 3);
   ctx.fill();
-  roundRectPath(ctx, -w/2, -h/2, w, h, 4);
-  ctx.fillStyle = PAL.terracotta;
+
+  roundRectPath(ctx, -w/2, -h/2, w, h, 3);
+  var canGrad = ctx.createLinearGradient(-w/2,0,w/2,0);
+  canGrad.addColorStop(0,'#8F3018'); canGrad.addColorStop(0.5,PAL.terracotta); canGrad.addColorStop(1,'#8F3018');
+  ctx.fillStyle = canGrad;
   ctx.fill();
-  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.fillStyle = PAL.brown;
-  ctx.fillRect(-w*0.12, -h*0.62, w*0.24, h*0.16);
-  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(0, -h*0.5, w*0.18, Math.PI, 0); ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.5;
+  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.4; ctx.stroke();
+
+  // nervures embouties en X — signature du jerrican militaire/routier
+  ctx.strokeStyle = 'rgba(0,0,0,0.24)'; ctx.lineWidth = 1.1;
   ctx.beginPath();
-  ctx.moveTo(-w*0.28, -h*0.05); ctx.lineTo(w*0.28, -h*0.05);
-  ctx.moveTo(0, -h*0.28); ctx.lineTo(0, h*0.3);
+  ctx.moveTo(-w*0.30,-h*0.24); ctx.lineTo(w*0.30,h*0.08);
+  ctx.moveTo(w*0.30,-h*0.24); ctx.lineTo(-w*0.30,h*0.08);
   ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-w*0.28,h*0.28); ctx.lineTo(w*0.28,h*0.28); ctx.stroke();
+
+  // goulot + bouchon
+  ctx.fillStyle = PAL.brown;
+  ctx.fillRect(-w*0.13, -h*0.64, w*0.26, h*0.16);
+  ctx.fillStyle = '#5C4632';
+  ctx.fillRect(-w*0.10, -h*0.70, w*0.20, h*0.08);
+
+  // poignée métallique
+  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.arc(0, -h*0.5, w*0.19, Math.PI*1.05, Math.PI*1.95); ctx.stroke();
+
   ctx.restore();
 }
 
 function drawSurfboard(ctx, cx, cy, size){
-  var len = size*0.92, wid = size*0.28;
+  var len = size*0.98, wid = size*0.26;
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(Math.PI/4);
   ctx.fillStyle = 'rgba(74,47,35,0.15)';
   ctx.beginPath(); ctx.ellipse(1,2,len/2,wid/2,0,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(0,0,len/2,wid/2,0,0,Math.PI*2);
-  ctx.fillStyle = PAL.teal; ctx.fill();
-  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // silhouette longboard fidèle : nez pointu, épaules rondes, queue carrée
+  ctx.beginPath();
+  ctx.moveTo(0,-len/2);
+  ctx.quadraticCurveTo(wid*0.52,-len*0.28,wid*0.5,0);
+  ctx.quadraticCurveTo(wid*0.5,len*0.34,wid*0.40,len/2);
+  ctx.lineTo(-wid*0.40,len/2);
+  ctx.quadraticCurveTo(-wid*0.5,len*0.34,-wid*0.5,0);
+  ctx.quadraticCurveTo(-wid*0.52,-len*0.28,0,-len/2);
+  ctx.closePath();
+  var boardGrad = ctx.createLinearGradient(-wid/2,0,wid/2,0);
+  boardGrad.addColorStop(0,PAL.tealDark); boardGrad.addColorStop(0.5,PAL.teal); boardGrad.addColorStop(1,PAL.tealDark);
+  ctx.fillStyle = boardGrad;
+  ctx.fill();
+  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.3; ctx.stroke();
+
+  // liston central (stringer)
+  ctx.strokeStyle = 'rgba(74,47,35,0.4)'; ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.moveTo(0,-len*0.47); ctx.lineTo(0,len*0.46); ctx.stroke();
+
+  // bande décorative
   ctx.fillStyle = PAL.paper;
-  ctx.beginPath(); ctx.ellipse(0,0,len*0.34,wid*0.22,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0,-len*0.04,wid*0.30,len*0.30,0,0,Math.PI*2); ctx.fill();
+
+  // dérive visible en bout de planche
+  ctx.fillStyle = PAL.brown;
+  ctx.beginPath();
+  ctx.moveTo(-wid*0.11,len*0.49); ctx.lineTo(wid*0.11,len*0.49); ctx.lineTo(0,len*0.66);
+  ctx.closePath(); ctx.fill();
+
   ctx.restore();
 }
 
@@ -760,17 +949,25 @@ function drawBeetleTopDown(ctx, cx, cy, size, tilt){
   ctx.fillStyle = 'rgba(74,47,35,0.2)';
   ctx.beginPath(); ctx.ellipse(2,4,bodyRX+fenderRX*0.7,bodyRY,0,0,Math.PI*2); ctx.fill();
 
+  // dégradé métallisé partagé (centre clair, bords sombres) — suggère la tôle bombée au couchant
+  var sheen = ctx.createLinearGradient(-bodyRX,0,bodyRX,0);
+  sheen.addColorStop(0,'rgba(0,0,0,0.16)');
+  sheen.addColorStop(0.5,'rgba(255,255,255,0.28)');
+  sheen.addColorStop(1,'rgba(0,0,0,0.16)');
+
   // ailes galbées — signature ronde de la Coccinelle, posées sous la carrosserie
-  ctx.fillStyle = PAL.mustard;
   ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.3;
   fenders.forEach(function(p){
     ctx.beginPath(); ctx.ellipse(p[0],p[1],fenderRX,fenderRY,0,0,Math.PI*2);
-    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = PAL.mustard; ctx.fill();
+    ctx.fillStyle = sheen; ctx.fill();
+    ctx.stroke();
   });
 
   // carrosserie centrale — dôme très arrondi façon galet
   ctx.beginPath(); ctx.ellipse(0,0,bodyRX,bodyRY,0,0,Math.PI*2);
   ctx.fillStyle = PAL.mustard; ctx.fill();
+  ctx.fillStyle = sheen; ctx.fill();
   ctx.lineWidth = 1.6; ctx.strokeStyle = PAL.brown; ctx.stroke();
 
   // ligne de capot avant + moteur arrière
@@ -778,8 +975,23 @@ function drawBeetleTopDown(ctx, cx, cy, size, tilt){
   ctx.beginPath(); ctx.moveTo(0,-bodyRY*0.92); ctx.lineTo(0,-bodyRY*0.22); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(0,bodyRY*0.22); ctx.lineTo(0,bodyRY*0.92); ctx.stroke();
 
-  // pare-brise avant galbé
+  // lignes de portière (les 2 portes bombées, caractéristiques de la silhouette Coccinelle)
+  ctx.strokeStyle = 'rgba(74,47,35,0.26)'; ctx.lineWidth = 1;
+  [-1,1].forEach(function(side){
+    ctx.beginPath();
+    ctx.moveTo(side*bodyRX*0.7,-bodyRY*0.12);
+    ctx.quadraticCurveTo(side*bodyRX*0.88,0,side*bodyRX*0.7,bodyRY*0.14);
+    ctx.stroke();
+  });
+
+  // pare-brise avant galbé, avec reflet vitré
   ctx.fillStyle = PAL.glass;
+  ctx.beginPath(); ctx.ellipse(0,-bodyRY*0.40,bodyRX*0.62,bodyRY*0.30,0,0,Math.PI*2); ctx.fill();
+  var glassSheen = ctx.createLinearGradient(-bodyRX*0.4,-bodyRY*0.6,bodyRX*0.2,-bodyRY*0.2);
+  glassSheen.addColorStop(0,'rgba(255,255,255,0.4)');
+  glassSheen.addColorStop(0.6,'rgba(255,255,255,0.05)');
+  glassSheen.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle = glassSheen;
   ctx.beginPath(); ctx.ellipse(0,-bodyRY*0.40,bodyRX*0.62,bodyRY*0.30,0,0,Math.PI*2); ctx.fill();
   // lunette arrière
   ctx.fillStyle = 'rgba(52,92,99,0.75)';
@@ -796,10 +1008,19 @@ function drawBeetleTopDown(ctx, cx, cy, size, tilt){
     ctx.beginPath(); ctx.arc(p[0], p[1]+fenderRY*0.25, fenderRX*0.32, 0, Math.PI*2); ctx.fill();
   });
 
-  // roues, au centre de chaque aile
-  ctx.fillStyle = PAL.brown;
+  // pare-chocs chromés avant/arrière — détail caractéristique des Coccinelle d'époque
+  ctx.strokeStyle = PAL.paper; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-bodyRX*0.35,-bodyRY*0.88); ctx.quadraticCurveTo(0,-bodyRY*1.02,bodyRX*0.35,-bodyRY*0.88); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-bodyRX*0.32,bodyRY*0.88); ctx.quadraticCurveTo(0,bodyRY*1.02,bodyRX*0.32,bodyRY*0.88); ctx.stroke();
+
+  // roues à flanc blanc (whitewall) + enjoliveur chromé — signature des rassemblements Coccinelle
   fenders.forEach(function(p){
+    ctx.fillStyle = PAL.brown;
     ctx.beginPath(); ctx.ellipse(p[0],p[1],fenderRX*0.42,fenderRY*0.55,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = PAL.paper;
+    ctx.beginPath(); ctx.ellipse(p[0],p[1],fenderRX*0.30,fenderRY*0.40,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = PAL.brown;
+    ctx.beginPath(); ctx.ellipse(p[0],p[1],fenderRX*0.15,fenderRY*0.20,0,0,Math.PI*2); ctx.fill();
   });
 
   ctx.restore();
@@ -810,30 +1031,65 @@ function drawObstacle(ctx, cx, cy, laneW, type){
   ctx.translate(cx, cy);
   if (type === 'cone'){
     ctx.fillStyle = 'rgba(74,47,35,0.18)';
-    ctx.beginPath(); ctx.ellipse(1,laneW*0.16,laneW*0.22,laneW*0.08,0,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = PAL.orange;
-    ctx.beginPath();
-    ctx.moveTo(0,-laneW*0.26);
-    ctx.lineTo(laneW*0.18,laneW*0.22);
-    ctx.lineTo(-laneW*0.18,laneW*0.22);
-    ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.fillStyle = PAL.white;
-    ctx.fillRect(-laneW*0.13, laneW*0.02, laneW*0.26, laneW*0.06);
-  } else if (type === 'pothole'){
+    ctx.beginPath(); ctx.ellipse(1,laneW*0.20,laneW*0.24,laneW*0.09,0,0,Math.PI*2); ctx.fill();
+    // socle
     ctx.fillStyle = PAL.brown;
-    ctx.beginPath(); ctx.ellipse(0,0,laneW*0.24,laneW*0.15,0,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath(); ctx.ellipse(0,0,laneW*0.16,laneW*0.09,0,0,Math.PI*2); ctx.fill();
+    roundRectPath(ctx, -laneW*0.22, laneW*0.14, laneW*0.44, laneW*0.09, 2);
+    ctx.fill();
+    // cône tronqué avec dégradé (galbe plastique)
+    var coneGrad = ctx.createLinearGradient(-laneW*0.18,0,laneW*0.18,0);
+    coneGrad.addColorStop(0,'#A8461D'); coneGrad.addColorStop(0.5,PAL.orange); coneGrad.addColorStop(1,'#A8461D');
+    ctx.beginPath();
+    ctx.moveTo(0,-laneW*0.28);
+    ctx.lineTo(laneW*0.17,laneW*0.16);
+    ctx.lineTo(-laneW*0.17,laneW*0.16);
+    ctx.closePath();
+    ctx.fillStyle = coneGrad; ctx.fill();
+    ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.4; ctx.stroke();
+    // bandes réfléchissantes blanches (typiques des cônes de chantier)
+    ctx.fillStyle = PAL.white;
+    ctx.beginPath(); ctx.moveTo(-laneW*0.075,-laneW*0.02); ctx.lineTo(laneW*0.075,-laneW*0.02); ctx.lineTo(laneW*0.11,laneW*0.07); ctx.lineTo(-laneW*0.11,laneW*0.07); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(laneW*0.03,-laneW*0.15); ctx.lineTo(laneW*0.09,-laneW*0.15); ctx.lineTo(laneW*0.105,-laneW*0.095); ctx.lineTo(laneW*0.045,-laneW*0.095); ctx.closePath(); ctx.fill();
+  } else if (type === 'pothole'){
+    // forme irrégulière (fissure d'asphalte) plutôt qu'une ellipse parfaite
+    ctx.fillStyle = '#2E2118';
+    ctx.beginPath();
+    ctx.moveTo(-laneW*0.23,-laneW*0.02);
+    ctx.lineTo(-laneW*0.11,-laneW*0.15);
+    ctx.lineTo(laneW*0.10,-laneW*0.12);
+    ctx.lineTo(laneW*0.24,laneW*0.01);
+    ctx.lineTo(laneW*0.15,laneW*0.14);
+    ctx.lineTo(-laneW*0.08,laneW*0.16);
+    ctx.lineTo(-laneW*0.21,laneW*0.09);
+    ctx.closePath();
+    ctx.fill();
+    var holeGrad = ctx.createRadialGradient(0,0,laneW*0.02,0,0,laneW*0.15);
+    holeGrad.addColorStop(0,'rgba(0,0,0,0.55)');
+    holeGrad.addColorStop(1,'rgba(0,0,0,0.1)');
+    ctx.fillStyle = holeGrad;
+    ctx.beginPath(); ctx.ellipse(0,0,laneW*0.14,laneW*0.09,0,0,Math.PI*2); ctx.fill();
+    // fissures irradiant du trou
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(laneW*0.15,laneW*0.02); ctx.lineTo(laneW*0.27,-laneW*0.06); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-laneW*0.13,-laneW*0.10); ctx.lineTo(-laneW*0.20,-laneW*0.19); ctx.stroke();
   } else {
-    var w = laneW*0.56, h = w*1.3;
+    // pick-up vintage vu de dessus — se distingue clairement de la Coccinelle du joueur
+    var w = laneW*0.58, h = w*1.32;
     ctx.fillStyle = 'rgba(74,47,35,0.18)';
-    roundRectPath(ctx,-w/2+2,-h/2+3,w,h,10); ctx.fill();
-    roundRectPath(ctx,-w/2,-h/2,w,h,10);
-    ctx.fillStyle = PAL.terracotta; ctx.fill();
+    roundRectPath(ctx,-w/2+2,-h/2+3,w,h,8); ctx.fill();
+    roundRectPath(ctx,-w/2,-h/2,w,h,8);
+    var carGrad = ctx.createLinearGradient(-w/2,0,w/2,0);
+    carGrad.addColorStop(0,'#8C3A20'); carGrad.addColorStop(0.5,PAL.terracotta); carGrad.addColorStop(1,'#8C3A20');
+    ctx.fillStyle = carGrad; ctx.fill();
     ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.5; ctx.stroke();
+    // cabine (vitres) à l'avant, benne plate à l'arrière
     ctx.fillStyle = PAL.glass;
-    roundRectPath(ctx,-w*0.3,-h*0.28,w*0.6,h*0.32,4); ctx.fill();
+    roundRectPath(ctx,-w*0.32,-h*0.40,w*0.64,h*0.30,4); ctx.fill();
+    ctx.strokeStyle = 'rgba(74,47,35,0.4)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0,-h*0.40); ctx.lineTo(0,-h*0.10); ctx.stroke();
+    ctx.strokeStyle = 'rgba(74,47,35,0.3)';
+    roundRectPath(ctx,-w*0.36,h*0.02,w*0.72,h*0.42,3); ctx.stroke();
+    // roues visibles aux 4 coins
     ctx.fillStyle = PAL.brown;
     var corners = [[-w*0.42,-h*0.36],[w*0.42,-h*0.36],[-w*0.42,h*0.36],[w*0.42,h*0.36]];
     for (var i=0;i<corners.length;i++){
@@ -857,10 +1113,17 @@ function drawRoadsideDecor(ctx, x, y, type){
       ctx.fill();
     }
   } else {
-    ctx.fillStyle = PAL.greenDark;
-    roundRectPath(ctx,-5,-22,10,30,5); ctx.fill();
-    roundRectPath(ctx,-14,-10,10,10,4); ctx.fill();
-    roundRectPath(ctx,4,-16,10,10,4); ctx.fill();
+    // même famille visuelle que le cactus saguaro du désert (drawCactus), à plus petite échelle,
+    // pour que le décor de bord de route reste cohérent avec celui de Combi Rodéo
+    var cw = 15, ch = 30;
+    var cgrad = ctx.createLinearGradient(-cw*0.3,0,cw*0.3,0);
+    cgrad.addColorStop(0,'#4E5A2C'); cgrad.addColorStop(0.5,PAL.green); cgrad.addColorStop(1,'#4E5A2C');
+    ctx.fillStyle = cgrad; ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1;
+    roundRectPath(ctx, -cw*0.18, -ch, cw*0.36, ch, cw*0.16); ctx.fill(); ctx.stroke();
+    roundRectPath(ctx, -cw*0.52, -ch*0.58, cw*0.26, ch*0.34, cw*0.11); ctx.fill(); ctx.stroke();
+    roundRectPath(ctx, cw*0.26, -ch*0.76, cw*0.26, ch*0.34, cw*0.11); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(74,47,35,0.35)'; ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.moveTo(0,-ch*0.94); ctx.lineTo(0,-ch*0.06); ctx.stroke();
   }
   ctx.restore();
 }
@@ -883,35 +1146,71 @@ function drawCombiSide(ctx, x, y, size, tilt){
   roundRectPath(ctx, -w*0.46, bodyTopY, w*0.90, bodyBottomY-bodyTopY, { tl:bodyH*0.22, tr:bodyH*0.55, br:bodyH*0.12, bl:bodyH*0.12 });
   ctx.fillStyle = PAL.teal;
   ctx.fill();
+  var sideSheen = ctx.createLinearGradient(0,bodyTopY,0,bodyBottomY);
+  sideSheen.addColorStop(0,'rgba(255,255,255,0.22)');
+  sideSheen.addColorStop(0.5,'rgba(255,255,255,0.02)');
+  sideSheen.addColorStop(1,'rgba(0,0,0,0.2)');
+  ctx.fillStyle = sideSheen; ctx.fill();
   ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.6; ctx.stroke();
+
+  // liseré pinstripe le long de la cassure 2 tons
+  ctx.strokeStyle = 'rgba(251,240,218,0.8)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-w*0.44,roofSplitY+2); ctx.lineTo(w*0.40,roofSplitY+2); ctx.stroke();
 
   // pavillon crème
   roundRectPath(ctx, -w*0.44, bodyTopY, w*0.86, roofSplitY-bodyTopY, { tl:bodyH*0.2, tr:bodyH*0.42, br:0, bl:0 });
   ctx.fillStyle = PAL.cream;
   ctx.fill();
+  var roofSheen = ctx.createLinearGradient(0,bodyTopY,0,roofSplitY);
+  roofSheen.addColorStop(0,'rgba(255,255,255,0.4)');
+  roofSheen.addColorStop(1,'rgba(0,0,0,0.06)');
+  ctx.fillStyle = roofSheen; ctx.fill();
 
-  // pare-brise avant, incliné
+  // ligne de portière latérale coulissante + poignée
+  ctx.strokeStyle = 'rgba(74,47,35,0.3)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-w*0.06,bodyTopY+bodyH*0.1); ctx.lineTo(-w*0.06,bodyBottomY-2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-w*0.16,bodyTopY+bodyH*0.62); ctx.lineTo(-w*0.08,bodyTopY+bodyH*0.62); ctx.stroke();
+
+  // grille d'aération arrière (moteur refroidi à l'air, signature technique du Combi)
+  ctx.strokeStyle = 'rgba(74,47,35,0.35)'; ctx.lineWidth = 1;
+  for (var vi=0; vi<3; vi++){
+    ctx.beginPath();
+    ctx.moveTo(-w*0.40, bodyBottomY-bodyH*0.10-vi*3.2);
+    ctx.lineTo(-w*0.30, bodyBottomY-bodyH*0.10-vi*3.2);
+    ctx.stroke();
+  }
+
+  // pare-brise avant, incliné, avec reflet
   ctx.fillStyle = PAL.glass;
   roundRectPath(ctx, w*0.08, bodyTopY+bodyH*0.08, w*0.28, bodyH*0.40, 6);
   ctx.fill();
+  var windGrad = ctx.createLinearGradient(w*0.08,bodyTopY,w*0.08,bodyTopY+bodyH*0.4);
+  windGrad.addColorStop(0,'rgba(255,255,255,0.38)');
+  windGrad.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle = windGrad;
+  roundRectPath(ctx, w*0.08, bodyTopY+bodyH*0.08, w*0.28, bodyH*0.40, 6);
+  ctx.fill();
   ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1;
+  roundRectPath(ctx, w*0.08, bodyTopY+bodyH*0.08, w*0.28, bodyH*0.40, 6);
   ctx.stroke();
 
   // rétroviseur
   ctx.fillStyle = PAL.tealDark;
   ctx.fillRect(w*0.05, bodyTopY+bodyH*0.26, w*0.05, bodyH*0.13);
 
-  // roues + enjoliveurs
+  // roues + enjoliveurs, flanc blanc (whitewall)
   [-w*0.27, w*0.27].forEach(function(wx){
     ctx.fillStyle = PAL.brown;
     ctx.beginPath(); ctx.arc(wx, wheelY, wheelR, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = PAL.paper;
-    ctx.beginPath(); ctx.arc(wx, wheelY, wheelR*0.42, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(wx, wheelY, wheelR*0.66, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = PAL.brown;
+    ctx.beginPath(); ctx.arc(wx, wheelY, wheelR*0.32, 0, Math.PI*2); ctx.fill();
   });
 
-  // pare-chocs avant + phare
-  ctx.fillStyle = PAL.brown;
-  ctx.fillRect(w*0.40, bodyBottomY-bodyH*0.16, w*0.06, bodyH*0.14);
+  // pare-chocs chromé avant + phare
+  ctx.strokeStyle = PAL.paper; ctx.lineWidth = 2.4;
+  ctx.beginPath(); ctx.moveTo(w*0.40, bodyBottomY-bodyH*0.16); ctx.lineTo(w*0.40, bodyBottomY-bodyH*0.02); ctx.stroke();
   ctx.fillStyle = PAL.paper;
   ctx.beginPath(); ctx.arc(w*0.40, bodyTopY+bodyH*0.62, bodyH*0.085, 0, Math.PI*2); ctx.fill();
   ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1; ctx.stroke();
@@ -926,18 +1225,29 @@ function drawCombiSide(ctx, x, y, size, tilt){
 function drawCactus(ctx, x, groundY, w, h){
   ctx.save();
   ctx.translate(x, groundY);
-  ctx.fillStyle = PAL.green;
+  var grad = ctx.createLinearGradient(-w*0.3,0,w*0.3,0);
+  grad.addColorStop(0,'#4E5A2C'); grad.addColorStop(0.5,PAL.green); grad.addColorStop(1,'#4E5A2C');
+  ctx.fillStyle = grad;
   ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.2;
   roundRectPath(ctx, -w*0.18, -h, w*0.36, h, w*0.16); ctx.fill(); ctx.stroke();
   roundRectPath(ctx, -w*0.5, -h*0.62, w*0.24, h*0.34, w*0.1); ctx.fill(); ctx.stroke();
   roundRectPath(ctx, w*0.26, -h*0.78, w*0.24, h*0.34, w*0.1); ctx.fill(); ctx.stroke();
+  // nervures verticales — signature du cactus saguaro
+  ctx.strokeStyle = 'rgba(74,47,35,0.4)'; ctx.lineWidth = 0.9;
+  [-0.09,-0.03,0.03,0.09].forEach(function(fx){
+    ctx.beginPath(); ctx.moveTo(w*fx,-h*0.96); ctx.lineTo(w*fx,-h*0.04); ctx.stroke();
+  });
+  // petites épines
+  ctx.fillStyle = 'rgba(74,47,35,0.5)';
+  for (var si=0; si<5; si++){
+    ctx.beginPath(); ctx.arc(-w*0.14+si*w*0.07, -h*(0.15+si*0.16), 0.8, 0, Math.PI*2); ctx.fill();
+  }
   ctx.restore();
 }
 
 function drawRockObstacle(ctx, x, groundY, w, h){
   ctx.save();
   ctx.translate(x, groundY);
-  ctx.fillStyle = PAL.brownLight;
   ctx.beginPath();
   ctx.moveTo(-w*0.5, 0);
   ctx.lineTo(-w*0.42, -h*0.55);
@@ -946,8 +1256,15 @@ function drawRockObstacle(ctx, x, groundY, w, h){
   ctx.lineTo(w*0.5, -h*0.2);
   ctx.lineTo(w*0.46, 0);
   ctx.closePath();
+  var rockGrad = ctx.createLinearGradient(-w*0.5,-h,w*0.3,0);
+  rockGrad.addColorStop(0,'#9C8A72'); rockGrad.addColorStop(0.55,PAL.brownLight); rockGrad.addColorStop(1,'#4A3A2A');
+  ctx.fillStyle = rockGrad;
   ctx.fill();
   ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.4; ctx.stroke();
+  // facettes internes (aspect géologique)
+  ctx.strokeStyle = 'rgba(74,47,35,0.32)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-w*0.1,-h); ctx.lineTo(-w*0.05,0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(w*0.28,-h*0.82); ctx.lineTo(w*0.1,-h*0.15); ctx.stroke();
   ctx.restore();
 }
 
@@ -956,7 +1273,9 @@ function drawPotholeSide(ctx, x, groundY, w, h){
   ctx.save();
   ctx.translate(x, groundY);
   roundRectPath(ctx, -w*0.5, -h, w, h, h*0.4);
-  ctx.fillStyle = PAL.orange;
+  var bumpGrad = ctx.createLinearGradient(0,-h,0,0);
+  bumpGrad.addColorStop(0,'#E8804A'); bumpGrad.addColorStop(1,'#B8501F');
+  ctx.fillStyle = bumpGrad;
   ctx.fill();
   ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.3; ctx.stroke();
   ctx.strokeStyle = PAL.white; ctx.lineWidth = 2;
@@ -983,28 +1302,48 @@ function drawRodeoCollectible(ctx, x, y, type){
   ctx.save();
   ctx.translate(x, y);
   if (type === 'flower'){
-    ctx.fillStyle = PAL.terracotta;
-    for (var i=0;i<6;i++){
-      var a = (i/6)*Math.PI*2;
+    // tournesol : pétales allongées en 2 couches, cœur texturé
+    ctx.fillStyle = PAL.mustardDark;
+    for (var i=0;i<8;i++){
+      var a = (i/8)*Math.PI*2 + 0.2;
       ctx.beginPath();
-      ctx.ellipse(Math.cos(a)*7, Math.sin(a)*7, 5, 3, a, 0, Math.PI*2);
+      ctx.ellipse(Math.cos(a)*7.5, Math.sin(a)*7.5, 5.5, 2.6, a, 0, Math.PI*2);
       ctx.fill();
     }
-    ctx.fillStyle = PAL.mustardDark;
+    ctx.fillStyle = PAL.terracotta;
+    for (var i2=0;i2<6;i2++){
+      var a2 = (i2/6)*Math.PI*2;
+      ctx.beginPath();
+      ctx.ellipse(Math.cos(a2)*6.5, Math.sin(a2)*6.5, 5, 2.4, a2, 0, Math.PI*2);
+      ctx.fill();
+    }
+    var centerGrad = ctx.createRadialGradient(-1,-1,0.5,0,0,5.5);
+    centerGrad.addColorStop(0,'#8A6A3C'); centerGrad.addColorStop(1,'#5A4326');
+    ctx.fillStyle = centerGrad;
     ctx.beginPath(); ctx.arc(0,0,5,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.arc(0,0,2.6,0,Math.PI*2); ctx.stroke();
   } else {
+    // capsule vintage : bord denté (crown cork) + reflet métallique
+    var teeth = 12, rOuter = 8, rInner = 6.2;
     ctx.fillStyle = PAL.teal;
-    ctx.beginPath(); ctx.arc(0,0,7.5,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1; ctx.stroke();
-    ctx.fillStyle = PAL.paper;
     ctx.beginPath();
-    for (var j=0;j<8;j++){
-      var ang = (j/8)*Math.PI*2;
-      var rr = (j%2===0) ? 7.5 : 5.2;
+    for (var t=0;t<teeth*2;t++){
+      var ang = (t/(teeth*2))*Math.PI*2;
+      var rr = (t%2===0) ? rOuter : rInner;
       var px = Math.cos(ang)*rr, py = Math.sin(ang)*rr;
-      if (j===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+      if (t===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
     }
     ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = PAL.brown; ctx.lineWidth = 0.8; ctx.stroke();
+    var capGrad = ctx.createLinearGradient(-rInner,-rInner,rInner,rInner);
+    capGrad.addColorStop(0,'rgba(255,255,255,0.4)');
+    capGrad.addColorStop(0.5,'rgba(255,255,255,0.05)');
+    capGrad.addColorStop(1,'rgba(0,0,0,0.15)');
+    ctx.fillStyle = capGrad;
+    ctx.beginPath(); ctx.arc(0,0,rInner*0.82,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = PAL.paper;
+    ctx.beginPath(); ctx.arc(0,0,rInner*0.42,0,Math.PI*2); ctx.fill();
   }
   ctx.restore();
 }
@@ -1057,7 +1396,7 @@ function resetSnake(){
   };
   sPrevBody = snake.body.map(function(s){ return {x:s.x,y:s.y}; });
   sInputQueue = [];
-  particles.length = 0;
+  particles.length = 0; scorePopups.length = 0;
   sScore = 0; sTick = 170; sAcc = 0; sFirstInput = false;
   sBestCache = getBest('snake');
   placeSnakeFood();
@@ -1116,6 +1455,7 @@ function updateSnake(dtMs){
     var fy = sGrid.oy + sFood.y*sGrid.cell + sGrid.cell/2;
     sfxPickup();
     spawnParticles(fx, fy, [PAL.mustard, PAL.terracotta, PAL.paper], 10, { upBias:40, minLife:0.3, maxLife:0.5 });
+    spawnScorePopup(fx, fy, '+10', PAL.tealDark);
     sScore += 10;
     sTick = Math.max(95, 170 - Math.floor(sScore/40)*6);
     placeSnakeFood();
@@ -1180,7 +1520,7 @@ function endSnake(hx, hy){
   var token = sessionToken;
   setTimeout(function(){
     if (token !== sessionToken) return;
-    finishRun('snake', sScore, 'COMBI ACCIDENTÉ !');
+    finishRun('snake', sScore, 'COMBI ACCIDENTÉ !');
   }, 380);
 }
 
@@ -1209,7 +1549,7 @@ function resetHighway(){
   beetle = { x: laneCenterX(1), targetLane:1, tilt:0 };
   hObstacles = [];
   hDecor = [];
-  particles.length = 0;
+  particles.length = 0; scorePopups.length = 0;
   hScore = 0; hDistance = 0; hSpeed = H_BASE_SPEED; hSpawnAcc = 0; hFirstInput = false;
   hLastOpenLanes = null;
   hBestCache = getBest('highway');
@@ -1317,6 +1657,14 @@ function renderHighway(){
 
   ctx.fillStyle = PAL.road;
   ctx.fillRect(hLanes.roadX,0,hLanes.roadW,H);
+  // ombrage des bords de la chaussée — donne du relief à l'asphalte plutôt qu'un aplat
+  var roadShade = ctx.createLinearGradient(hLanes.roadX,0,hLanes.roadX+hLanes.roadW,0);
+  roadShade.addColorStop(0,'rgba(0,0,0,0.22)');
+  roadShade.addColorStop(0.07,'rgba(0,0,0,0)');
+  roadShade.addColorStop(0.93,'rgba(0,0,0,0)');
+  roadShade.addColorStop(1,'rgba(0,0,0,0.22)');
+  ctx.fillStyle = roadShade;
+  ctx.fillRect(hLanes.roadX,0,hLanes.roadW,H);
   ctx.fillStyle = PAL.roadLine;
   ctx.fillRect(hLanes.roadX-4,0,4,H);
   ctx.fillRect(hLanes.roadX+hLanes.roadW,0,4,H);
@@ -1345,7 +1693,7 @@ function endHighway(hx, hy){
   var token = sessionToken;
   setTimeout(function(){
     if (token !== sessionToken) return;
-    finishRun('highway', hScore, 'CRASH SUR LA ROUTE !');
+    finishRun('highway', hScore, 'CRASH SUR LA ROUTE !');
   }, 380);
 }
 
@@ -1376,7 +1724,7 @@ function resetRodeo(){
     { x: W*0.2, w: W*0.55, h: H*0.10 },
     { x: W*0.7, w: W*0.4, h: H*0.07 }
   ];
-  particles.length = 0;
+  particles.length = 0; scorePopups.length = 0;
   rScore = 0; rDistance = 0; rSpeed = R_BASE_SPEED; rDuneAcc = 0; rCollectAcc = 0;
   rNextObstacleAt = 420; // départ tranquille avant le premier obstacle
   rBestCache = getBest('rodeo');
@@ -1515,6 +1863,7 @@ function updateRodeo(dt){
       rScore += 25;
       sfxPickup();
       spawnParticles(qc.x, qc.y, [PAL.mustard, PAL.terracotta, PAL.paper], 10, { upBias:30, minLife:0.3, maxLife:0.5 });
+      spawnScorePopup(qc.x, qc.y, '+25', PAL.tealDark);
       rCollectibles.splice(qi,1);
       updateHUD(rScore, rBestCache);
     }
@@ -1579,7 +1928,7 @@ function endRodeo(hx, hy){
   var token = sessionToken;
   setTimeout(function(){
     if (token !== sessionToken) return;
-    finishRun('rodeo', rScore, 'CRASH DANS LE DÉSERT !');
+    finishRun('rodeo', rScore, 'CRASH DANS LE DÉSERT !');
   }, 380);
 }
 
@@ -1709,7 +2058,9 @@ function startCountdown(onDone){
 
 function updateHUD(score, best){
   hudScoreEl.textContent = score;
-  hudBestEl.textContent = best;
+  // affiche le record provisoire en direct dès qu'on le dépasse en cours de partie,
+  // plutôt qu'un chiffre figé au score d'avant-partie
+  hudBestEl.textContent = Math.max(score, best||0);
 }
 
 function showScreen(id){
@@ -1776,12 +2127,14 @@ function loop(ts){
   lastTs = ts;
   // Les particules continuent d'animer même juste après la fin de partie (running=false),
   // le temps que l'effet d'impact se termine, sans quoi elles resteraient figées à l'écran.
-  if (running || particles.length){
+  if (running || particles.length || scorePopups.length){
     if (currentMode === 'snake'){ if (running) updateSnake(dt*1000); renderSnake(); }
     else if (currentMode === 'highway'){ if (running) updateHighway(dt); renderHighway(); }
     else if (currentMode === 'rodeo'){ if (running) updateRodeo(dt); renderRodeo(); }
     updateParticles(dt);
     renderParticles(ctx);
+    updateScorePopups(dt);
+    renderScorePopups(ctx);
   }
   requestAnimationFrame(loop);
 }
