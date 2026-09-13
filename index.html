@@ -20,7 +20,7 @@ html,body{
   margin:0; padding:0; width:100%; height:100%;
   overflow:hidden; overscroll-behavior:none;
   font-family:'Arial Rounded MT Bold','Segoe UI Rounded','Helvetica Rounded',Arial,sans-serif;
-  background:#191A1A;
+  background:#17282C;
 }
 button{ font:inherit; border:none; background:none; padding:0; margin:0; cursor:pointer; color:inherit; }
 p,h1,h2{ margin:0; }
@@ -47,7 +47,11 @@ p,h1,h2{ margin:0; }
   --glass:#2C4A55;
 }
 
-body{ display:flex; justify-content:center; align-items:center; min-height:100vh; min-height:100dvh; }
+body{
+  display:flex; justify-content:center; align-items:center; min-height:100vh; min-height:100dvh;
+  /* sur grand écran, le jeu flotte sur un fond "grand large" au lieu d'un noir neutre */
+  background:radial-gradient(ellipse at 50% 22%, #2C5560 0%, #17282C 70%);
+}
 
 #app{
   position:relative;
@@ -73,64 +77,25 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
 }
 .screen.is-active{ opacity:1; visibility:visible; transition:opacity .25s ease, visibility 0s linear 0s; }
 
-/* ---------------------------------- MENU ---------------------------------- */
-#screen-menu{ background:linear-gradient(180deg, var(--cream) 0%, var(--cream) 55%, var(--sand) 100%); }
-
-.mountains{ position:absolute; left:0; bottom:44%; width:100%; height:34%; pointer-events:none; }
-.lake{
-  position:absolute; left:0; right:0; bottom:30%; height:20%; pointer-events:none;
-  background:linear-gradient(180deg, rgba(62,132,150,0.5), rgba(42,95,110,0.62));
-  border-top:1px solid rgba(244,240,228,0.4);
+/* ---------------------------------- MENU ----------------------------------
+   Le menu est une carte illustrée de la plage : chaque jeu y occupe un lieu
+   (le spot de surf, la corniche, les dunes). Le décor est peint sur #mapCanvas,
+   derrière les pancartes, et se recale sur leur position à chaque redimensionnement. */
+#screen-menu{ background:#B9D9E0; }
+.menu-map{
+  position:absolute; inset:0; overflow-x:hidden; overflow-y:auto;
+  overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin; scrollbar-color:rgba(51,48,46,.35) transparent;
 }
-.lake-glints{ position:absolute; left:0; bottom:30%; width:100%; height:20%; pointer-events:none; }
-.bunting{ position:absolute; left:0; top:0; width:100%; height:26px; z-index:3; pointer-events:none; }
+.map-inner{ position:relative; min-height:100%; display:flex; flex-direction:column; }
+#mapCanvas{ position:absolute; left:0; top:0; width:100%; height:100%; display:block; pointer-events:none; }
 
-.menu-scene{
-  position:relative; flex-shrink:0;
-  height:29%; min-height:158px; max-height:215px;
-  overflow:hidden;
-  background:linear-gradient(180deg,#CFE4E8,#A7C6C4 78%,#8FB4BC);
+.map-header{
+  position:relative; z-index:1; flex:0 0 auto;
+  display:flex; justify-content:center;
+  padding:calc(40px + env(safe-area-inset-top)) 20px 30px;
 }
-.sun-rays{
-  position:absolute; left:50%; top:32%; width:168px; height:168px;
-  margin-left:-84px; margin-top:-84px; border-radius:50%;
-  background:repeating-conic-gradient(from 0deg, rgba(207,162,74,.55) 0deg 4deg, transparent 4deg 20deg);
-  animation:spin 90s linear infinite;
-}
-.sun{
-  position:absolute; left:50%; top:32%; width:86px; height:86px;
-  margin-left:-43px; margin-top:-43px; border-radius:50%;
-  background:radial-gradient(circle at 35% 32%, #F7F4E9, var(--mustard) 72%);
-  box-shadow:0 0 34px rgba(207,162,74,.6);
-}
-@keyframes spin{ to{ transform:rotate(360deg); } }
-
-.cloud{ position:absolute; background:var(--white); border-radius:40px; opacity:.9; }
-.cloud::before,.cloud::after{ content:""; position:absolute; background:var(--white); border-radius:50%; }
-.cloud1{ width:64px; height:22px; top:14%; left:10%; }
-.cloud1::before{ width:30px; height:30px; top:-15px; left:6px; }
-.cloud1::after{ width:22px; height:22px; top:-10px; left:30px; }
-.cloud2{ width:48px; height:16px; top:10%; right:14%; }
-.cloud2::before{ width:22px; height:22px; top:-11px; left:5px; }
-.cloud2::after{ width:18px; height:18px; top:-7px; left:22px; }
-
-.hill{ position:absolute; left:-8%; width:116%; border-radius:50%/100% 100% 0 0; }
-.hill-back{ height:50px; bottom:18px; background:var(--green); opacity:.9; }
-.hill-front{ height:38px; bottom:0; background:var(--green-dark); }
-
-.flower{ position:absolute; bottom:10px; width:22px; height:22px; z-index:2; }
-.flower1{ left:9%; transform:scale(.85); }
-.flower2{ right:11%; transform:scale(1.05); }
-.road-ribbon{ position:absolute; left:0; bottom:0; width:100%; height:78%; z-index:1; pointer-events:none; }
-
-.menu-content{
-  flex:1; min-height:0; display:flex; flex-direction:column; align-items:center;
-  padding:16px 20px 20px; overflow-y:auto; position:relative; z-index:2; margin-top:-16px;
-}
-/* margin-top/bottom:auto sur le premier et le dernier élément = bloc centré
-   verticalement quand il reste de la place, et simple alignement en haut (sans
-   rognage) dès que le contenu dépasse — contrairement à justify-content:center. */
-.title-wrap{ position:relative; display:inline-block; margin-top:auto; margin-bottom:13px; transform:rotate(-1.6deg); }
+.title-wrap{ position:relative; display:inline-block; transform:rotate(-1.6deg); }
 .title{ text-align:center; margin:2px 0 4px; line-height:.9; }
 .title-line1,.title-line2{
   display:block; font-weight:900; letter-spacing:1.5px;
@@ -146,40 +111,49 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
 }
 .ladybug-deco{ position:absolute; width:30px; height:30px; top:-2px; right:-13px; transform:rotate(16deg); filter:drop-shadow(1px 2px 0 rgba(51,48,46,.35)); }
 
-.mode-cards{ width:100%; display:flex; flex-direction:column; gap:14px; }
+/* Un lieu de la carte : la pancarte se colle d'un côté, le reste de la zone
+   est laissé au décor peint (accessoires de plage, route, dunes). */
+.spot{ position:relative; z-index:1; flex:1 0 auto; display:flex; padding:10px 14px; }
+/* Chaque lieu réserve la place de son décor autour de la pancarte : même quand le
+   texte passe sur plus de lignes (petits écrans), la mer, la route et le saut restent
+   visibles au lieu d'être recouverts. */
+.spot-snake{ padding-top:44px; justify-content:flex-end; align-items:flex-end; --tilt:1.3deg; }
+.spot-highway{ padding-bottom:78px; justify-content:flex-start; align-items:flex-start; --tilt:-1.4deg; }
+.spot-rodeo{
+  justify-content:flex-end; align-items:flex-start; --tilt:1deg;
+  padding-bottom:calc(92px + env(safe-area-inset-bottom));
+}
+
 .mode-card{
-  position:relative; display:flex; align-items:center; gap:12px; width:100%;
-  background:var(--paper); border:3px solid var(--brown); border-radius:20px;
-  box-shadow:5px 5px 0 var(--brown); padding:13px 13px 13px 25px; text-align:left;
+  position:relative; display:flex; align-items:center; gap:10px;
+  width:68%; max-width:290px;
+  background:var(--paper); border:3px solid var(--brown); border-radius:18px;
+  box-shadow:4px 4px 0 var(--brown); padding:19px 11px 11px 21px; text-align:left;
+  transform:rotate(var(--tilt,0deg));
   transition:transform .08s ease, box-shadow .08s ease;
 }
-.mode-card:active{ transform:translate(4px,4px); box-shadow:1px 1px 0 var(--brown); }
+.mode-card:active{ transform:rotate(var(--tilt,0deg)) translate(3px,3px); box-shadow:1px 1px 0 var(--brown); }
 .mode-card::before{
-  content:""; position:absolute; left:9px; top:12px; bottom:12px; width:6px; border-radius:4px;
+  content:""; position:absolute; left:8px; top:11px; bottom:11px; width:5px; border-radius:4px;
 }
 .mode-card[data-mode="snake"]::before{ background:var(--teal); }
 .mode-card[data-mode="highway"]::before{ background:var(--terracotta); }
 .mode-card[data-mode="rodeo"]::before{ background:var(--orange); }
-.mode-icon{ width:68px; height:68px; flex-shrink:0; display:block; border-radius:15px; background:var(--cream-dark); }
+.mode-icon{ width:52px; height:52px; flex-shrink:0; display:block; border-radius:13px; background:var(--cream-dark); }
 .mode-info{ flex:1; min-width:0; }
-.mode-title-row{ display:flex; align-items:baseline; gap:7px; flex-wrap:wrap; margin-bottom:3px; }
-.mode-info h2{ font-size:15px; letter-spacing:.3px; color:var(--brown); margin:0; }
+.mode-title-row{ display:flex; align-items:baseline; column-gap:6px; flex-wrap:wrap; margin-bottom:3px; }
+.mode-info h2{ font-size:14px; letter-spacing:.3px; color:var(--brown); margin:0; }
 .difficulty-tag{ font-size:9.5px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; white-space:nowrap; }
 .difficulty-easy{ color:var(--green-dark); }
 .difficulty-medium{ color:var(--orange); }
 .difficulty-hard{ color:var(--terracotta); }
-.mode-info p{ font-size:11.5px; color:var(--brown-light); margin-bottom:6px; }
-.mode-best{ font-size:10.5px; font-weight:700; color:var(--teal-dark); }
-.mode-best strong{ font-size:13px; color:var(--orange-dark); margin-left:4px; }
+.mode-info p{ font-size:11px; line-height:1.25; color:var(--brown-light); margin-bottom:5px; }
+.mode-best{ font-size:10px; font-weight:700; color:var(--teal-dark); }
+.mode-best strong{ font-size:12.5px; color:var(--orange-dark); margin-left:4px; }
 .play-chip{
-  position:absolute; top:-9px; right:12px; background:var(--orange); color:var(--white);
+  position:absolute; top:-10px; right:10px; background:var(--orange); color:var(--white);
   font-size:10px; font-weight:800; letter-spacing:.4px; padding:4px 9px;
   border-radius:20px; border:2px solid var(--brown);
-}
-.menu-footer-deco{
-  margin-top:14px; margin-bottom:auto; width:64%; max-width:200px; height:3px; border-radius:2px; flex-shrink:0;
-  background:repeating-linear-gradient(90deg, var(--brown-light) 0 8px, transparent 8px 15px);
-  opacity:.5;
 }
 
 /* -------------------------------- ÉCRAN JEU -------------------------------- */
@@ -297,126 +271,83 @@ body{ display:flex; justify-content:center; align-items:center; min-height:100vh
 
 <div id="app">
 
-  <!-- ===================== MENU PRINCIPAL ===================== -->
+  <!-- ===================== MENU PRINCIPAL : CARTE DE LA PLAGE ===================== -->
   <section id="screen-menu" class="screen is-active">
-    <div class="menu-scene">
-      <div class="sun-rays"></div>
-      <div class="sun"></div>
-      <svg class="mountains" viewBox="0 0 300 90" preserveAspectRatio="none" aria-hidden="true">
-        <polygon points="0,90 0,58 22,32 40,48 68,14 92,44 118,24 148,50 172,18 198,42 224,16 252,46 278,26 300,52 300,90" fill="#9AAAB0" opacity="0.5"/>
-        <polygon points="0,90 0,70 28,44 58,62 88,36 122,60 158,40 192,58 226,36 262,57 300,42 300,90" fill="#6E8894" opacity="0.68"/>
-      </svg>
-      <div class="cloud cloud1"></div>
-      <div class="cloud cloud2"></div>
-      <div class="lake"></div>
-      <svg class="lake-glints" viewBox="0 0 300 40" preserveAspectRatio="none" aria-hidden="true">
-        <rect x="129" y="1" width="7" height="7" fill="#F7F4E9" opacity="0.55"/>
-        <rect x="138" y="12" width="11" height="4.5" fill="#F7F4E9" opacity="0.42"/>
-        <rect x="124" y="21" width="15" height="4" fill="#F7F4E9" opacity="0.35"/>
-        <rect x="38" y="9" width="20" height="2.5" fill="#F4F0E4" opacity="0.32"/>
-        <rect x="205" y="17" width="24" height="2.5" fill="#F4F0E4" opacity="0.32"/>
-        <rect x="70" y="24" width="14" height="2" fill="#F4F0E4" opacity="0.28"/>
-      </svg>
-      <div class="hill hill-back"></div>
-      <div class="hill hill-front"></div>
-      <svg class="bunting" viewBox="0 0 300 26" preserveAspectRatio="none" aria-hidden="true">
-        <line x1="0" y1="2" x2="300" y2="2" stroke="#33302E" stroke-width="1.2" opacity="0.55"/>
-        <g opacity="0.94">
-          <polygon points="6,2 20,2 13,19" fill="#D2603A"/>
-          <polygon points="28,2 42,2 35,19" fill="#3E8496"/>
-          <polygon points="50,2 64,2 57,19" fill="#CFA24A"/>
-          <polygon points="72,2 86,2 79,19" fill="#BE3A34"/>
-          <polygon points="94,2 108,2 101,19" fill="#D2603A"/>
-          <polygon points="116,2 130,2 123,19" fill="#3E8496"/>
-          <polygon points="138,2 152,2 145,19" fill="#CFA24A"/>
-          <polygon points="160,2 174,2 167,19" fill="#BE3A34"/>
-          <polygon points="182,2 196,2 189,19" fill="#D2603A"/>
-          <polygon points="204,2 218,2 211,19" fill="#3E8496"/>
-          <polygon points="226,2 240,2 233,19" fill="#CFA24A"/>
-          <polygon points="248,2 262,2 255,19" fill="#BE3A34"/>
-          <polygon points="270,2 284,2 277,19" fill="#D2603A"/>
-          <polygon points="292,2 300,2 296,19" fill="#3E8496"/>
-        </g>
-      </svg>
-      <svg class="road-ribbon" viewBox="0 0 300 210" preserveAspectRatio="none" aria-hidden="true">
-        <polygon points="86,210 174,210 155,84 105,84" fill="#EDE7D6" opacity="0.55"/>
-        <line x1="129" y1="205" x2="151" y2="88" stroke="#33302E" stroke-width="2" stroke-dasharray="7 8" opacity="0.35"/>
-        <g transform="translate(111,158) rotate(-4)">
-          <rect x="-12" y="-6.5" width="24" height="13" rx="5.5" fill="#33302E" opacity="0.55"/>
-          <rect x="-4" y="-10.5" width="13" height="7" rx="2.5" fill="#33302E" opacity="0.55"/>
-        </g>
-        <g transform="translate(147,112) rotate(-3)">
-          <ellipse cx="0" cy="0" rx="7.5" ry="5.5" fill="#33302E" opacity="0.5"/>
-        </g>
-      </svg>
-      <svg class="flower flower1" viewBox="0 0 40 40"><g fill="#BE3A34"><circle cx="20" cy="9" r="7"/><circle cx="20" cy="31" r="7"/><circle cx="9" cy="20" r="7"/><circle cx="31" cy="20" r="7"/></g><circle cx="20" cy="20" r="6.5" fill="#CFA24A"/></svg>
-      <svg class="flower flower2" viewBox="0 0 40 40"><g fill="#F4F0E4"><circle cx="20" cy="9" r="7"/><circle cx="20" cy="31" r="7"/><circle cx="9" cy="20" r="7"/><circle cx="31" cy="20" r="7"/></g><circle cx="20" cy="20" r="6.5" fill="#3E8496"/></svg>
-    </div>
+    <div class="menu-map" id="menuMap">
+      <div class="map-inner" id="mapInner">
+        <canvas id="mapCanvas" aria-hidden="true"></canvas>
 
-    <div class="menu-content">
-      <div class="title-wrap">
-        <h1 class="title">
-          <span class="title-line1">COX'</span>
-          <span class="title-line2">ATTITUDE</span>
-        </h1>
-        <svg class="ladybug-deco" viewBox="0 0 40 40" aria-hidden="true">
-          <ellipse cx="20" cy="23" rx="14" ry="12" fill="#BE3A34"/>
-          <path d="M20 11 L20 34" stroke="#33302E" stroke-width="1.6"/>
-          <circle cx="20" cy="10" r="6.5" fill="#1E1C1B"/>
-          <circle cx="13" cy="19" r="2.3" fill="#1E1C1B"/>
-          <circle cx="27" cy="19" r="2.3" fill="#1E1C1B"/>
-          <circle cx="13" cy="28" r="2.1" fill="#1E1C1B"/>
-          <circle cx="27" cy="28" r="2.1" fill="#1E1C1B"/>
-          <circle cx="20" cy="31" r="2" fill="#1E1C1B"/>
-        </svg>
+        <header class="map-header">
+          <div class="title-wrap">
+            <h1 class="title">
+              <span class="title-line1">COX'</span>
+              <span class="title-line2">ATTITUDE</span>
+            </h1>
+            <svg class="ladybug-deco" viewBox="0 0 40 40" aria-hidden="true">
+              <ellipse cx="20" cy="23" rx="14" ry="12" fill="#BE3A34"/>
+              <path d="M20 11 L20 34" stroke="#33302E" stroke-width="1.6"/>
+              <circle cx="20" cy="10" r="6.5" fill="#1E1C1B"/>
+              <circle cx="13" cy="19" r="2.3" fill="#1E1C1B"/>
+              <circle cx="27" cy="19" r="2.3" fill="#1E1C1B"/>
+              <circle cx="13" cy="28" r="2.1" fill="#1E1C1B"/>
+              <circle cx="27" cy="28" r="2.1" fill="#1E1C1B"/>
+              <circle cx="20" cy="31" r="2" fill="#1E1C1B"/>
+            </svg>
+          </div>
+        </header>
+
+        <!-- Le spot de surf -->
+        <div class="spot spot-snake">
+          <button class="mode-card" data-mode="snake" type="button">
+            <canvas class="mode-icon" id="iconSnake" width="120" height="120"></canvas>
+            <div class="mode-info">
+              <div class="mode-title-row">
+                <h2>COMBI SNAKE</h2>
+                <span class="difficulty-tag difficulty-easy">Facile</span>
+              </div>
+              <p>Ramasse bidons et boards sans jamais te mordre la queue</p>
+              <div class="mode-best">Meilleur score <strong id="bestSnake">0</strong></div>
+            </div>
+            <span class="play-chip">JOUER ▶</span>
+          </button>
+        </div>
+
+        <!-- La corniche -->
+        <div class="spot spot-highway">
+          <button class="mode-card" data-mode="highway" type="button">
+            <canvas class="mode-icon" id="iconHighway" width="120" height="120"></canvas>
+            <div class="mode-info">
+              <div class="mode-title-row">
+                <h2>BEETLE HIGHWAY</h2>
+                <span class="difficulty-tag difficulty-medium">Moyen</span>
+              </div>
+              <p>Slalome entre les voitures, la route accélère sans fin</p>
+              <div class="mode-best">Meilleur score <strong id="bestHighway">0</strong></div>
+            </div>
+            <span class="play-chip">JOUER ▶</span>
+          </button>
+        </div>
+
+        <!-- Les dunes -->
+        <div class="spot spot-rodeo">
+          <button class="mode-card" data-mode="rodeo" type="button">
+            <canvas class="mode-icon" id="iconRodeo" width="120" height="120"></canvas>
+            <div class="mode-info">
+              <div class="mode-title-row">
+                <h2>COMBI RODÉO</h2>
+                <span class="difficulty-tag difficulty-hard">Difficile</span>
+              </div>
+              <p>Un tap, un saut par-dessus cactus et rochers du désert</p>
+              <div class="mode-best">Meilleur score <strong id="bestRodeo">0</strong></div>
+            </div>
+            <span class="play-chip">JOUER ▶</span>
+          </button>
+        </div>
       </div>
-
-      <div class="mode-cards">
-        <button class="mode-card" data-mode="snake" type="button">
-          <canvas class="mode-icon" id="iconSnake" width="120" height="120"></canvas>
-          <div class="mode-info">
-            <div class="mode-title-row">
-              <h2>COMBI SNAKE</h2>
-              <span class="difficulty-tag difficulty-easy">Facile</span>
-            </div>
-            <p>Ramasse bidons et boards sans jamais te mordre la queue</p>
-            <div class="mode-best">Meilleur score <strong id="bestSnake">0</strong></div>
-          </div>
-          <span class="play-chip">JOUER ▶</span>
-        </button>
-
-        <button class="mode-card" data-mode="highway" type="button">
-          <canvas class="mode-icon" id="iconHighway" width="120" height="120"></canvas>
-          <div class="mode-info">
-            <div class="mode-title-row">
-              <h2>BEETLE HIGHWAY</h2>
-              <span class="difficulty-tag difficulty-medium">Moyen</span>
-            </div>
-            <p>Slalome entre les voitures, la route accélère sans fin</p>
-            <div class="mode-best">Meilleur score <strong id="bestHighway">0</strong></div>
-          </div>
-          <span class="play-chip">JOUER ▶</span>
-        </button>
-
-        <button class="mode-card" data-mode="rodeo" type="button">
-          <canvas class="mode-icon" id="iconRodeo" width="120" height="120"></canvas>
-          <div class="mode-info">
-            <div class="mode-title-row">
-              <h2>COMBI RODÉO</h2>
-              <span class="difficulty-tag difficulty-hard">Difficile</span>
-            </div>
-            <p>Un tap, un saut par-dessus cactus et rochers du désert</p>
-            <div class="mode-best">Meilleur score <strong id="bestRodeo">0</strong></div>
-          </div>
-          <span class="play-chip">JOUER ▶</span>
-        </button>
-      </div>
-
-      <div class="menu-footer-deco" aria-hidden="true"></div>
     </div>
   </section>
 
-  <!-- ===================== ÉCRAN DE JEU ===================== -->
+<!-- ===================== ÉCRAN DE JEU ===================== -->
   <section id="screen-game" class="screen">
     <header id="hud">
       <button id="btnBack" class="hud-btn" type="button" aria-label="Retour au menu">←</button>
@@ -1365,6 +1296,434 @@ function drawRodeoCollectible(ctx, x, y, type){
   ctx.restore();
 }
 
+/* ==========================================================================
+   MENU — carte illustrée de la plage
+   Le décor est peint sur un canvas derrière les pancartes. Chaque bande
+   (mer, sable, route, dunes) est calée sur la position réelle des pancartes :
+   la carte reste juste quelle que soit la hauteur de l'écran. Les accessoires
+   réutilisent les dessins des jeux eux-mêmes (Combi, Coccinelle, planches...).
+   ========================================================================== */
+var mapCanvas = document.getElementById('mapCanvas');
+var mapInner = document.getElementById('mapInner');
+var MAP = {
+  skyTop:'#B9D9E0', skyLow:'#E3EEEA',
+  seaFar:'#357A8A', seaNear:'#6AADB3', foam:'#F6F2E8',
+  sand:'#E9DDCB', sandWet:'#D7C9B3',
+  duneBack:'#D5C7AE', duneSage:'#8FA283', ground:'#DED0B9',
+  headland:'#7E957A'
+};
+
+// Hasard reproductible : la carte garde le même dessin à chaque redessin
+function seededRandom(seed){
+  return function(){
+    seed = (seed + 0x6D2B79F5) | 0;
+    var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function mapRect(el){
+  var r = el.getBoundingClientRect(), p = mapInner.getBoundingClientRect();
+  return { x:r.left-p.left, y:r.top-p.top, w:r.width, h:r.height, r:r.right-p.left, b:r.bottom-p.top };
+}
+
+// Toponyme façon carte ancienne : italique à empattements, lettres espacées, liseré clair
+function mapLabel(g, text, x, y, color, halo, align){
+  var track = 1.6, widths = [], total = 0, i, cx;
+  g.save();
+  g.font = "italic 700 12px Georgia, 'Times New Roman', serif";
+  g.textBaseline = 'middle';
+  for (i=0;i<text.length;i++){ widths.push(g.measureText(text[i]).width); total += widths[i] + (i ? track : 0); }
+  var start = align === 'right' ? x - total : (align === 'center' ? x - total/2 : x);
+  g.lineJoin = 'round'; g.lineWidth = 3; g.strokeStyle = halo;
+  for (i=0, cx=start; i<text.length; i++){ g.strokeText(text[i], cx, y); cx += widths[i] + track; }
+  g.fillStyle = color;
+  for (i=0, cx=start; i<text.length; i++){ g.fillText(text[i], cx, y); cx += widths[i] + track; }
+  g.restore();
+}
+
+// Trace une ligne ondulée lissée passant par une série de points (décalée de dy)
+function traceWavy(g, pts, dy){
+  g.moveTo(pts[0].x, pts[0].y + dy);
+  for (var i=1;i<pts.length-1;i++){
+    g.quadraticCurveTo(pts[i].x, pts[i].y + dy, (pts[i].x+pts[i+1].x)/2, (pts[i].y+pts[i+1].y)/2 + dy);
+  }
+  var last = pts[pts.length-1];
+  g.lineTo(last.x, last.y + dy);
+}
+
+function drawMapSun(g, x, y, r){
+  g.save(); g.translate(x, y);
+  g.fillStyle = 'rgba(207,162,74,0.5)';
+  for (var i=0;i<14;i++){
+    g.rotate(Math.PI*2/14);
+    g.beginPath(); g.moveTo(r*1.2,-2.2); g.lineTo(r*1.95,0); g.lineTo(r*1.2,2.2); g.closePath(); g.fill();
+  }
+  var sg = g.createRadialGradient(-r*0.3,-r*0.3,r*0.1,0,0,r);
+  sg.addColorStop(0,'#FBF6E6'); sg.addColorStop(1,PAL.mustard);
+  g.fillStyle = sg; g.beginPath(); g.arc(0,0,r,0,Math.PI*2); g.fill();
+  g.strokeStyle = 'rgba(51,48,46,0.5)'; g.lineWidth = 1.2; g.stroke();
+  g.restore();
+}
+
+function drawMapCloud(g, x, y, s){
+  g.fillStyle = '#F7F5EE';
+  [[0,0,22,8],[-9,-5,10,8],[4,-8,11,10],[14,-3,8,6]].forEach(function(c){
+    g.beginPath(); g.ellipse(x+c[0]*s, y+c[1]*s, c[2]*s, c[3]*s, 0, 0, Math.PI*2); g.fill();
+  });
+}
+
+function drawGull(g, x, y, s){
+  g.strokeStyle = 'rgba(51,48,46,0.7)'; g.lineWidth = 1.3; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(x-6*s, y);
+  g.quadraticCurveTo(x-3*s, y-4*s, x, y);
+  g.quadraticCurveTo(x+3*s, y-4*s, x+6*s, y);
+  g.stroke();
+}
+
+// Guirlande de fanions qui pend légèrement (plus naturelle qu'une ligne droite)
+function drawBunting(g, mw){
+  var x0 = -8, x1 = mw + 8, y0 = 5, cy = y0 + 30;
+  function pt(t){ var m = 1-t; return { x: m*m*x0 + 2*m*t*(x0+x1)/2 + t*t*x1, y: m*m*y0 + 2*m*t*cy + t*t*y0 }; }
+  g.strokeStyle = 'rgba(51,48,46,0.6)'; g.lineWidth = 1.2;
+  g.beginPath(); g.moveTo(x0,y0); g.quadraticCurveTo((x0+x1)/2, cy, x1, y0); g.stroke();
+  var colors = [PAL.terracotta, PAL.teal, PAL.mustard, PAL.paper];
+  var n = Math.round((x1-x0)/24);
+  for (var i=1;i<n;i++){
+    var p = pt(i/n), q = pt(i/n + 0.01);
+    g.save(); g.translate(p.x, p.y); g.rotate(Math.atan2(q.y-p.y, q.x-p.x));
+    g.beginPath(); g.moveTo(-7,0); g.lineTo(7,0); g.lineTo(0,16); g.closePath();
+    g.fillStyle = colors[i % colors.length]; g.fill();
+    g.strokeStyle = 'rgba(51,48,46,0.55)'; g.lineWidth = 1; g.stroke();
+    g.restore();
+  }
+}
+
+// Cap rocheux et son phare rayé, à l'horizon
+function drawHeadland(g, mw, horizonY){
+  var x0 = mw*0.72;
+  g.beginPath(); g.moveTo(x0, horizonY+1);
+  g.bezierCurveTo(x0+mw*0.07, horizonY-12, mw*0.84, horizonY-26, mw*0.93, horizonY-26);
+  g.lineTo(mw+2, horizonY-22); g.lineTo(mw+2, horizonY+1); g.closePath();
+  g.fillStyle = MAP.headland; g.fill();
+  g.strokeStyle = 'rgba(51,48,46,0.45)'; g.lineWidth = 1.2; g.stroke();
+
+  var lx = mw*0.95, ly = horizonY-25;
+  g.save();
+  g.beginPath(); g.moveTo(lx-5,ly); g.lineTo(lx-3.4,ly-24); g.lineTo(lx+3.4,ly-24); g.lineTo(lx+5,ly); g.closePath();
+  g.fillStyle = PAL.paper; g.fill();
+  g.save(); g.clip();
+  g.fillStyle = PAL.terracotta;
+  for (var s=0;s<3;s++) g.fillRect(lx-6, ly-6-s*8, 12, 4);
+  g.restore();
+  g.strokeStyle = PAL.brown; g.lineWidth = 1.1; g.stroke();
+  g.fillStyle = PAL.glass; g.fillRect(lx-3.5, ly-30, 7, 6);
+  g.strokeRect(lx-3.5, ly-30, 7, 6);
+  g.beginPath(); g.moveTo(lx-5,ly-30); g.lineTo(lx,ly-35); g.lineTo(lx+5,ly-30); g.closePath();
+  g.fillStyle = PAL.terracotta; g.fill(); g.stroke();
+  g.restore();
+}
+
+function drawSailboat(g, x, y, s){
+  g.save(); g.translate(x, y); g.scale(s, s);
+  g.strokeStyle = PAL.brown; g.lineWidth = 1.2; g.lineJoin = 'round';
+  g.beginPath(); g.moveTo(0,0); g.lineTo(0,-25); g.stroke();
+  g.beginPath(); g.moveTo(1.5,-24); g.lineTo(1.5,-3); g.lineTo(14,-3); g.closePath();
+  g.fillStyle = PAL.paper; g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(-1.5,-20); g.lineTo(-1.5,-3); g.lineTo(-10,-3); g.closePath();
+  g.fillStyle = PAL.terracotta; g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(-13,0); g.lineTo(13,0); g.lineTo(9,5); g.lineTo(-9,5); g.closePath();
+  g.fillStyle = PAL.brown; g.fill();
+  g.strokeStyle = 'rgba(246,242,232,0.7)';
+  g.beginPath(); g.moveTo(-15,8); g.lineTo(-5,8); g.moveTo(3,8); g.lineTo(14,8); g.stroke();
+  g.restore();
+}
+
+function drawMapSky(g, mw, horizonY){
+  var sky = g.createLinearGradient(0,0,0,horizonY);
+  sky.addColorStop(0, MAP.skyTop); sky.addColorStop(1, MAP.skyLow);
+  g.fillStyle = sky; g.fillRect(0, 0, mw, horizonY+2);
+  drawMapSun(g, mw*0.14, horizonY*0.36, 19);
+  drawMapCloud(g, mw*0.73, horizonY*0.30, 0.85);
+  drawGull(g, mw*0.31, horizonY*0.40, 1);
+  drawGull(g, mw*0.37, horizonY*0.46, 0.75);
+  drawHeadland(g, mw, horizonY);
+  drawBunting(g, mw);
+}
+
+function drawMapSea(g, mw, horizonY, shoreY, rnd){
+  var sea = g.createLinearGradient(0, horizonY, 0, shoreY);
+  sea.addColorStop(0, MAP.seaFar); sea.addColorStop(1, MAP.seaNear);
+  g.fillStyle = sea; g.fillRect(0, horizonY, mw, shoreY-horizonY+16);
+  g.fillStyle = 'rgba(246,242,232,0.55)'; g.fillRect(0, horizonY, mw, 1.5);
+
+  // reflet du soleil sur l'eau, en tirets qui s'amenuisent
+  var sx = mw*0.14;
+  for (var k=0;k<5;k++){
+    var gy = horizonY + 5 + k*7;
+    if (gy > shoreY - 10) break;
+    var gw = 24 - k*3.5;
+    g.fillStyle = 'rgba(251,246,230,' + (0.6 - k*0.1).toFixed(2) + ')';
+    g.fillRect(sx - gw/2 + (k%2 ? 3 : -2), gy, gw, 2);
+  }
+
+  // vaguelettes : plus grandes et plus espacées vers le rivage (effet de perspective)
+  var y = horizonY + 9, step = 6, size = 5;
+  while (y < shoreY - 12){
+    var depth = (y - horizonY) / Math.max(1, shoreY - horizonY);
+    g.strokeStyle = 'rgba(246,242,232,' + (0.3 + depth*0.3).toFixed(2) + ')';
+    g.lineWidth = 1 + depth*0.6; g.lineCap = 'round';
+    var x = -rnd()*size*4;
+    while (x < mw){
+      g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x+size*0.5, y-size*0.5, x+size, y); g.stroke();
+      x += size*2.5 + rnd()*size*5;
+    }
+    y += step; step *= 1.25; size *= 1.2;
+  }
+  if (shoreY - horizonY > 44) drawSailboat(g, mw*0.70, horizonY + (shoreY-horizonY)*0.40, 0.85);
+  if (shoreY - horizonY > 36) mapLabel(g, "l'Océan", mw*0.40, (horizonY+shoreY)/2 + 2, MAP.foam, 'rgba(53,122,138,0.9)', 'center');
+}
+
+function drawMapBeach(g, mw, mh, shoreY, rnd){
+  var pts = [];
+  for (var x=-12; x<=mw+28; x+=16) pts.push({ x:x, y: shoreY + Math.sin(x*0.05 + 1.2)*3.5 + (rnd()-0.5)*2.4 });
+
+  g.fillStyle = MAP.sand;
+  g.beginPath(); traceWavy(g, pts, 0); g.lineTo(mw+28, mh+2); g.lineTo(-12, mh+2); g.closePath(); g.fill();
+
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  g.strokeStyle = MAP.sandWet; g.lineWidth = 12;
+  g.beginPath(); traceWavy(g, pts, 7); g.stroke();
+  g.strokeStyle = 'rgba(51,48,46,0.22)'; g.lineWidth = 1;
+  g.beginPath(); traceWavy(g, pts, 2.5); g.stroke();
+
+  // écume festonnée + second liseré au large
+  g.fillStyle = MAP.foam;
+  for (var i=0;i<pts.length;i++){ g.beginPath(); g.arc(pts[i].x, pts[i].y, 5.5, Math.PI, 0); g.fill(); }
+  g.strokeStyle = MAP.foam; g.lineWidth = 3.5;
+  g.beginPath(); traceWavy(g, pts, 0); g.stroke();
+  g.save(); g.setLineDash([12,8]); g.strokeStyle = 'rgba(246,242,232,0.6)'; g.lineWidth = 1.6;
+  g.beginPath(); traceWavy(g, pts, -10); g.stroke(); g.restore();
+
+  // grain du sable (pointillé)
+  var top = shoreY + 14, n = Math.floor(mw*(mh-top)/230);
+  for (var d=0; d<n; d++){
+    var light = rnd() < 0.3;
+    g.fillStyle = light ? 'rgba(255,255,255,0.55)' : 'rgba(51,48,46,0.13)';
+    g.fillRect(rnd()*mw, top + rnd()*(mh-top), light ? 1.6 : 1.2, light ? 1.6 : 1.2);
+  }
+}
+
+function drawParasol(g, bx, by, k){
+  var poleH = 50*k, tilt = 0.14, r = 26*k, h = r*0.66, seg = 6, i;
+  var tx = bx + Math.sin(tilt)*poleH, ty = by - Math.cos(tilt)*poleH;
+  g.fillStyle = 'rgba(51,48,46,0.13)';
+  g.beginPath(); g.ellipse(bx + 12*k, by + 1, r*1.05, 6*k, 0, 0, Math.PI*2); g.fill();
+  g.strokeStyle = PAL.brown; g.lineWidth = 2*k; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(bx, by); g.lineTo(tx, ty); g.stroke();
+
+  g.save(); g.translate(tx, ty); g.rotate(tilt);
+  g.beginPath(); g.ellipse(0, 0, r, h, 0, Math.PI, 0); g.closePath();
+  g.save(); g.clip();
+  for (i=0;i<seg;i++){
+    var xa = -r + i*(2*r/seg);
+    g.beginPath(); g.moveTo(0, -h-2); g.lineTo(xa, 1); g.lineTo(xa + 2*r/seg, 1); g.closePath();
+    g.fillStyle = i%2 ? PAL.paper : PAL.terracotta; g.fill();
+  }
+  g.restore();
+  g.strokeStyle = PAL.brown; g.lineWidth = 1.4; g.stroke();
+  for (i=0;i<seg;i++){
+    var xc = -r + (i+0.5)*(2*r/seg);
+    g.beginPath(); g.arc(xc, 0, r/seg, 0, Math.PI); g.closePath();
+    g.fillStyle = i%2 ? PAL.paper : PAL.terracotta; g.fill();
+    g.lineWidth = 1.1; g.stroke();
+  }
+  g.fillStyle = PAL.brown; g.beginPath(); g.arc(0, -h-1, 2*k, 0, Math.PI*2); g.fill();
+  g.restore();
+}
+
+function drawTowel(g, x, y, k){
+  g.save(); g.translate(x, y); g.rotate(-0.12);
+  roundRectPath(g, -19*k, -8*k, 38*k, 16*k, 2);
+  g.fillStyle = PAL.paper; g.fill();
+  g.save(); g.clip();
+  g.fillStyle = PAL.teal;
+  for (var s=0;s<3;s++) g.fillRect(-14*k + s*11*k, -9*k, 5*k, 18*k);
+  g.restore();
+  roundRectPath(g, -19*k, -8*k, 38*k, 16*k, 2);
+  g.strokeStyle = PAL.brown; g.lineWidth = 1.1; g.stroke();
+  g.restore();
+}
+
+// Planche plantée dans le sable (réutilise la planche du Combi Snake, redressée)
+function drawPlantedBoard(g, bx, by, len, tilt){
+  g.save(); g.translate(bx, by - len*0.46); g.rotate(-Math.PI/4 + tilt);
+  drawSurfboard(g, 0, 0, len);
+  g.restore();
+  g.fillStyle = MAP.sandWet;
+  g.beginPath(); g.ellipse(bx, by + len*0.07, len*0.2, len*0.13, 0, 0, Math.PI*2); g.fill();
+  g.strokeStyle = 'rgba(51,48,46,0.25)'; g.lineWidth = 1;
+  g.beginPath(); g.ellipse(bx, by + len*0.07, len*0.2, len*0.13, 0, Math.PI*1.1, Math.PI*1.9); g.stroke();
+}
+
+function drawStarfish(g, x, y, r){
+  g.save(); g.translate(x, y); g.rotate(0.35);
+  g.beginPath();
+  for (var i=0;i<10;i++){
+    var a = -Math.PI/2 + i*Math.PI/5, rr = i%2 ? r*0.45 : r;
+    if (i) g.lineTo(Math.cos(a)*rr, Math.sin(a)*rr); else g.moveTo(Math.cos(a)*rr, Math.sin(a)*rr);
+  }
+  g.closePath(); g.fillStyle = PAL.orange; g.fill();
+  g.strokeStyle = PAL.brown; g.lineWidth = 1; g.stroke();
+  g.restore();
+}
+
+// Le spot de surf (Combi Snake) : planches, bidon, serviette, parasol
+function drawMapSurfSpot(g, x0, x1, y0, y1){
+  var fw = x1 - x0;
+  if (fw < 50) return;
+  var k = clamp(fw/118, 0.7, 1.12);
+  drawPlantedBoard(g, x0 + fw*0.13, y1 - 10*k, 46*k, -0.08);
+  drawPlantedBoard(g, x0 + fw*0.31, y1 - 7*k, 40*k, 0.12);
+  drawStarfish(g, x0 + fw*0.56, y0 + (y1-y0)*0.34, 6*k);
+  drawTowel(g, x0 + fw*0.70, y1 - 7*k, k);
+  drawGasCan(g, x0 + fw*0.47, y1 - 13*k, 20*k);
+  drawParasol(g, x0 + fw*0.84, y1 - 9*k, k);
+  mapLabel(g, 'le Spot', x0 + 2, y0 + 10, PAL.brown, MAP.sand, 'left');
+}
+
+// La corniche (Beetle Highway) : la route, la circulation, un palmier
+function drawMapRoad(g, mw, spotH, cardH, rnd){
+  var top = cardH.b + 16, bot = spotH.b - 12;
+  if (bot - top < 54) top = bot - 54;
+  if (bot - top > 84){ var m = (top+bot)/2; top = m - 42; bot = m + 42; }
+  var rh = bot - top, mid = (top+bot)/2;
+
+  g.fillStyle = 'rgba(51,48,46,0.08)'; g.fillRect(0, top-6, mw, rh+12);
+  g.fillStyle = PAL.road; g.fillRect(0, top, mw, rh);
+  for (var i=0; i<mw*rh/90; i++){
+    g.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.12)';
+    g.fillRect(rnd()*mw, top + rnd()*rh, 1.3, 1.3);
+  }
+  g.strokeStyle = 'rgba(51,48,46,0.6)'; g.lineWidth = 1.4;
+  g.beginPath(); g.moveTo(0, top); g.lineTo(mw, top); g.moveTo(0, bot); g.lineTo(mw, bot); g.stroke();
+  g.fillStyle = PAL.roadLine;
+  g.fillRect(0, top+4, mw, 1.8); g.fillRect(0, bot-5.8, mw, 1.8);
+  for (var x=-6; x<mw; x+=26) g.fillRect(x, mid-1.5, 14, 3);
+
+  var laneW = rh*0.62;
+  g.save(); g.translate(mw*0.22, mid - rh*0.25); g.rotate(-Math.PI/2);
+  drawObstacle(g, 0, 0, laneW, 'slowcar');
+  g.restore();
+  drawObstacle(g, mw*0.52, mid - rh*0.24, laneW*0.9, 'cone');
+
+  var bx = mw*0.76, by = mid + rh*0.25, tail = bx - rh*0.34;
+  g.strokeStyle = 'rgba(237,231,214,0.6)'; g.lineWidth = 1.6; g.lineCap = 'round';
+  for (var s=-1; s<=1; s++){
+    g.beginPath(); g.moveTo(tail - 3 - Math.abs(s)*5, by + s*5); g.lineTo(tail - 15 - Math.abs(s)*5, by + s*5); g.stroke();
+  }
+  drawBeetleTopDown(g, bx, by, rh*0.36, Math.PI/2);
+
+  var px0 = cardH.r + 4, pfw = mw - 6 - px0;
+  if (pfw > 44){
+    var pk = clamp(pfw/70, 1.1, 1.7);
+    g.save(); g.translate(px0 + pfw*0.45, top - 7); g.scale(pk, pk);
+    drawRoadsideDecor(g, 0, -20, 'palm');
+    g.restore();
+    mapLabel(g, 'la Corniche', mw - 10, spotH.y + 16, PAL.brown, MAP.sand, 'right');
+  }
+}
+
+function duneBand(g, mw, baseY, topY, phase, freq, color){
+  g.beginPath(); g.moveTo(-10, baseY + 2);
+  for (var x=-10; x<=mw+10; x+=5){
+    var a = 0.5 + 0.5*Math.sin(x*freq + phase);
+    var b = 0.5 + 0.5*Math.sin(x*freq*2.1 + phase*1.9);
+    g.lineTo(x, baseY - (baseY-topY)*(0.18 + 0.58*a + 0.24*b));
+  }
+  g.lineTo(mw+10, baseY + 2); g.closePath();
+  g.fillStyle = color; g.fill();
+  g.strokeStyle = 'rgba(51,48,46,0.35)'; g.lineWidth = 1.2; g.stroke();
+}
+
+// Les dunes (Combi Rodéo) : le Combi en plein saut au-dessus d'un cactus
+function drawMapDunes(g, mw, mh, spotR, cardR, rnd){
+  var groundY = Math.min(mh - 20, Math.max(cardR.b + 60, spotR.b - 30));
+  duneBand(g, mw, groundY, spotR.y + 8, 0.6, 0.018, MAP.duneBack);
+  duneBand(g, mw, groundY, spotR.y + (groundY - spotR.y)*0.42, 2.4, 0.026, MAP.duneSage);
+
+  g.fillStyle = MAP.ground; g.fillRect(0, groundY, mw, mh - groundY + 2);
+  for (var d=0; d<mw*(mh-groundY)/200; d++){
+    g.fillStyle = 'rgba(51,48,46,0.14)';
+    g.fillRect(rnd()*mw, groundY + 4 + rnd()*(mh-groundY-4), 1.2, 1.2);
+  }
+  g.strokeStyle = 'rgba(51,48,46,0.45)'; g.lineWidth = 1.4;
+  g.beginPath(); g.moveTo(0, groundY); g.lineTo(mw, groundY); g.stroke();
+  g.strokeStyle = 'rgba(51,48,46,0.16)'; g.lineWidth = 3;
+  for (var x=4; x<mw; x+=44){ g.beginPath(); g.moveTo(x, groundY+9); g.lineTo(x+20, groundY+9); g.stroke(); }
+
+  drawRockObstacle(g, mw*0.84, groundY, 26, 17);
+  drawCactus(g, mw*0.94, groundY, 16, 30);
+
+  var size = clamp(mw*0.15, 46, 62), kk = size/56;
+  var x0 = mw*0.04, L = mw*0.6, peak = 116*kk;
+  g.save(); g.setLineDash([4,5]); g.strokeStyle = 'rgba(51,48,46,0.4)'; g.lineWidth = 1.3;
+  g.beginPath(); g.moveTo(x0, groundY); g.quadraticCurveTo(x0 + L*0.5, groundY - peak, x0 + L, groundY); g.stroke();
+  g.restore();
+  drawCactus(g, x0 + L*0.5, groundY, 22*kk, 40*kk);
+
+  g.fillStyle = PAL.paper; g.strokeStyle = 'rgba(51,48,46,0.35)'; g.lineWidth = 1;
+  [[0,-4,5],[7,-7,4],[-6,-2,3.5]].forEach(function(p){
+    g.beginPath(); g.arc(x0 + 6 + p[0]*kk, groundY + p[1]*kk, p[2]*kk, 0, Math.PI*2); g.fill(); g.stroke();
+  });
+
+  // position sur la trajectoire (courbe de Bézier, contrôle au milieu => x linéaire en t)
+  var t = 0.22, jx = x0 + L*t, jy = groundY - 2*t*(1-t)*peak;
+  g.fillStyle = 'rgba(51,48,46,0.16)';
+  g.beginPath(); g.ellipse(jx, groundY + 2, size*0.28, size*0.06, 0, 0, Math.PI*2); g.fill();
+  drawCombiSide(g, jx, jy, size, -0.18);
+
+  mapLabel(g, 'les Dunes', 14, spotR.y + 24, PAL.brown, MAP.duneBack, 'left');
+}
+
+function drawMenuMap(){
+  var mw = mapInner.clientWidth, mh = mapInner.clientHeight;
+  if (!mw || !mh) return;
+  var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  mapCanvas.width = Math.round(mw*dpr);
+  mapCanvas.height = Math.round(mh*dpr);
+  var g = mapCanvas.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  var rnd = seededRandom(1966);
+
+  var header = mapRect(document.querySelector('.map-header'));
+  var spotS = mapRect(document.querySelector('.spot-snake'));
+  var cardS = mapRect(document.querySelector('.spot-snake .mode-card'));
+  var spotH = mapRect(document.querySelector('.spot-highway'));
+  var cardH = mapRect(document.querySelector('.spot-highway .mode-card'));
+  var spotR = mapRect(document.querySelector('.spot-rodeo'));
+  var cardR = mapRect(document.querySelector('.spot-rodeo .mode-card'));
+
+  var horizonY = header.b - 24;
+  var shoreY = Math.max(spotS.y + 22, cardS.y - 14);
+
+  drawMapSky(g, mw, horizonY);
+  drawMapSea(g, mw, horizonY, shoreY, rnd);
+  drawMapBeach(g, mw, mh, shoreY, rnd);
+  drawMapSurfSpot(g, 10, cardS.x - 6, shoreY + 12, spotS.b - 8);
+  drawMapRoad(g, mw, spotH, cardH, rnd);
+  drawMapDunes(g, mw, mh, spotR, cardR, rnd);
+}
+
+var mapRedrawPending = false;
+function scheduleMenuMap(){
+  if (mapRedrawPending) return;
+  mapRedrawPending = true;
+  requestAnimationFrame(function(){ mapRedrawPending = false; drawMenuMap(); });
+}
+window.addEventListener('resize', scheduleMenuMap);
+
 function drawMenuIcons(){
   var c1 = document.getElementById('iconSnake');
   var g1 = c1.getContext('2d');
@@ -2100,6 +2459,7 @@ function goToMenu(){
   bestHighwayEl.textContent = getBest('highway');
   bestRodeoEl.textContent = getBest('rodeo');
   showScreen('screen-menu');
+  scheduleMenuMap();
 }
 
 function playMode(mode){
@@ -2169,6 +2529,7 @@ bestHighwayEl.textContent = getBest('highway');
 bestRodeoEl.textContent = getBest('rodeo');
 btnMute.textContent = soundEnabled ? '🔊' : '🔇';
 drawMenuIcons();
+drawMenuMap();
 
 })();
 </script>
