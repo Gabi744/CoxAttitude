@@ -654,222 +654,438 @@ window.addEventListener('resize', resizeCanvas);
    DESSINS PARTAGÉS (véhicules, obstacles, décor) — vus de dessus
    ========================================================================== */
 
-// Combi (fourgon) — orienté par défaut vers la droite (angle 0 = +x = avant)
-function drawCombi(ctx, cx, cy, size, angle, tone){
-  tone = tone || { body:PAL.cream, trim:PAL.teal };
-  var w = size, h = size * 0.62;
+// Véhicules, obstacles et collectibles : dessins réalisés dans Figma (fichier
+// « Cox'Attitude — Véhicules & Props »), repris ici en SVG. Chaque dessin est
+// rastérisé une seule fois dans un canvas hors écran au chargement : pendant le jeu,
+// on ne dessine plus que des images, ce qui reste rapide sur mobile.
+function svgStops(stops){
+  return stops.split(',').map(function(s){ var p = s.split(' '); return '<stop offset="' + p[0] + '" stop-color="' + p[1] + '"/>'; }).join('');
+}
+function svgLinear(id, x2, y2, stops){
+  return '<linearGradient id="' + id + '" x1="0" y1="0" x2="' + x2 + '" y2="' + y2 + '">' + svgStops(stops) + '</linearGradient>';
+}
+function svgRadial(id, cx, cy, r, stops){
+  return '<radialGradient id="' + id + '" cx="' + cx + '" cy="' + cy + '" r="' + r + '">' + svgStops(stops) + '</radialGradient>';
+}
+function svgRepeat(n, fn){ var s = ''; for (var i=0;i<n;i++) s += fn(i); return s; }
+
+var SPRITE_DEFS = '<defs>' + [
+  svgLinear('bodyG', 0, 1, '0 #D6504A,0.55 #BE3A34,1 #8E2B27'),
+  svgLinear('fendG', 0, 1, '0 #D24A43,0.6 #B8362F,1 #862823'),
+  svgLinear('bodyH', 1, 0, '0 #9E2F2A,0.4 #D24A43,0.62 #BE3A34,1 #8E2B27'),
+  svgLinear('glassG', 0, 1, '0 #4A7584,1 #223F49'),
+  svgLinear('chromeG', 0, 1, '0 #F4F6F6,1 #A3AEB1'),
+  svgLinear('tealG', 0, 1, '0 #56A0B2,0.55 #3E8496,1 #2A5F6E'),
+  svgLinear('ivoryG', 0, 1, '0 #FDFBF6,1 #E6DFCD'),
+  svgLinear('tealH', 1, 0, '0 #2A5F6E,0.4 #4E97A8,0.62 #3E8496,1 #2A5F6E'),
+  svgLinear('ivoryH', 1, 0, '0 #E3DCCB,0.4 #FDFBF6,0.62 #F4F0E4,1 #DED7C5'),
+  svgLinear('slateH', 1, 0, '0 #2F4752,0.4 #6A8E9C,0.62 #5C8090,1 #2F4752'),
+  svgLinear('plankG', 1, 0, '0 #A88A5C,0.5 #C4A575,1 #A88A5C'),
+  svgLinear('coneG', 1, 0, '0 #A8441F,0.35 #EE7E48,0.6 #D2603A,1 #9A3D1C'),
+  svgRadial('holeG', 0.45, 0.4, 0.6, '0 #15181A,0.7 #23292C,1 #3A4347'),
+  svgLinear('waterG', 1, 1, '0 #3C6572,1 #1B3139'),
+  svgLinear('cacG', 1, 0, '0 #4F6349,0.35 #95A886,0.6 #6E8462,1 #3F5142'),
+  svgLinear('rockG', 1, 1, '0 #B7AE9F,1 #7A7064'),
+  svgLinear('driftG', 0, 1, '0 #CFC4B0,0.5 #A89C88,1 #7E7362'),
+  svgLinear('oliveH', 1, 0, '0 #4A552C,0.35 #8A9760,0.6 #6E7A45,1 #465129'),
+  svgLinear('brassG', 0, 1, '0 #E9C872,1 #9A7529'),
+  svgLinear('deckH', 1, 0, '0 #E3DCCB,0.4 #FDFBF6,1 #E0D9C7'),
+  svgLinear('petalG', 0, 1, '0 #F2C94C,1 #D9A43A'),
+  svgRadial('seedG', 0.4, 0.4, 0.7, '0 #6B4A2A,1 #3A2816'),
+  svgRadial('metalG', 0.35, 0.3, 0.8, '0 #EEF2F3,1 #8E9A9E'),
+  svgRadial('capG', 0.35, 0.3, 0.8, '0 #5BA6B8,1 #2A5F6E')
+].join('') + '</defs>';
+
+// Roue à flanc blanc : pneu, flanc, jante, enjoliveur chromé et reflet
+function svgWheel(cx, cy, r, rim){
+  var c = ' cx="' + cx + '" cy="' + cy + '"';
+  return '<circle' + c + ' r="' + r + '" fill="#2B2826"/>' +
+    '<circle' + c + ' r="' + (r*0.81) + '" fill="#F4F0E4"/>' +
+    '<circle' + c + ' r="' + (r*0.63) + '" fill="' + rim + '" stroke="#33302E" stroke-width="1.2"/>' +
+    '<circle' + c + ' r="' + (r*0.41) + '" fill="url(#chromeG)" stroke="#33302E" stroke-width="1.2"/>' +
+    '<circle' + c + ' r="' + (r*0.11) + '" fill="#5E5955"/>' +
+    '<path d="M' + (cx-0.82*r) + ' ' + (cy-0.5*r) + ' A' + (0.95*r) + ' ' + (0.95*r) + ' 0 0 1 ' + (cx-0.18*r) + ' ' + (cy-0.95*r) + '" fill="none" stroke="#5E5955" stroke-width="1.6" stroke-linecap="round"/>';
+}
+var CHROME = ' fill="url(#chromeG)" stroke="#33302E"';
+var GLASS = ' fill="url(#glassG)" stroke="#C9D1D3"';
+
+var COMBI_SIDE_OUTLINE = 'M64 40 L300 40 C316 40 322 48 324 60 C330 84 332 112 330 150 L301 152 A29 29 0 0 0 243 152 L133 152 A29 29 0 0 0 75 152 L34 152 C30 120 30 84 34 66 C38 50 48 40 64 40 Z';
+
+function caravanBody(ring, ringDark){
+  return [
+    '<ellipse cx="64" cy="106" rx="42" ry="76" fill="#33302E" opacity="0.16"/>',
+    '<path d="M60 14 L42 44 M60 14 L78 44" stroke="#33302E" stroke-width="3.2" stroke-linecap="round"/>',
+    '<path d="M60 14 L42 44 M60 14 L78 44" stroke="#5E5955" stroke-width="1.4" stroke-linecap="round"/>',
+    '<circle cx="60" cy="12" r="4.5"' + CHROME + ' stroke-width="1.2"/>',
+    '<rect x="58" y="17" width="4" height="7" rx="1.5" fill="#2B2826"/>',
+    '<rect x="54" y="27" width="12" height="13" rx="4.5" fill="' + ring + '" stroke="#33302E" stroke-width="1.3"/>',
+    '<rect x="56" y="29" width="3" height="9" rx="1.5" fill="#FFFFFF" opacity="0.3"/>',
+    '<circle cx="60" cy="27" r="2"' + CHROME + ' stroke-width="0.8"/>',
+    '<rect x="16" y="96" width="7" height="28" rx="3.5" fill="#2B2826"/><rect x="97" y="96" width="7" height="28" rx="3.5" fill="#2B2826"/>',
+    '<rect x="21" y="38" width="78" height="140" rx="32" fill="' + ring + '" stroke="#33302E" stroke-width="2.2"/>',
+    '<rect x="27" y="45" width="66" height="127" rx="27" fill="url(#ivoryH)" stroke="' + ringDark + '" stroke-width="1" stroke-opacity="0.6"/>',
+    '<rect x="32" y="50" width="56" height="117" rx="22" fill="none" stroke="' + ring + '" stroke-width="1.6"/>',
+    '<path d="M37 60 C47 52 73 52 83 60 L81 70 C71 65 49 65 39 70 Z"' + GLASS + ' stroke-width="1.4" stroke-linejoin="round"/>',
+    '<path d="M45 58 L51 56 L48 67 L43 68 Z" fill="#FFFFFF" opacity="0.18"/>',
+    '<rect x="49" y="90" width="22" height="18" rx="3" fill="#D3CCBA" stroke="#33302E" stroke-width="1.2"/>',
+    '<path d="M52 95 L68 95 M52 99 L68 99 M52 103 L68 103" stroke="#8E8780" stroke-width="1"/>',
+    '<rect x="53" y="138" width="14" height="11" rx="2.5" fill="#D3CCBA" stroke="#33302E" stroke-width="1.1"/>',
+    '<path d="M55 142 L65 142 M55 145 L65 145" stroke="#8E8780" stroke-width="0.9"/>',
+    '<rect x="36" y="56" width="5" height="104" rx="2.5" fill="#FFFFFF" opacity="0.25"/>',
+    '<circle cx="33" cy="171" r="3" fill="#D2603A" stroke="#33302E" stroke-width="1"/><circle cx="87" cy="171" r="3" fill="#D2603A" stroke="#33302E" stroke-width="1"/>'
+  ].join('');
+}
+
+function sunflowerBody(){
+  var s = '<circle cx="58" cy="59" r="40" fill="#33302E" opacity="0.14"/>', i, k;
+  for (i=0;i<12;i++) s += '<path d="M55 13 C61 21 61 33 55 39 C49 33 49 21 55 13 Z" fill="#C58F2A" stroke="#33302E" stroke-width="1" transform="rotate(' + (i*30) + ' 55 55)"/>';
+  for (i=0;i<12;i++) s += '<path d="M55 18 C60 25 60 35 55 40 C50 35 50 25 55 18 Z" fill="url(#petalG)" stroke="#33302E" stroke-width="1" transform="rotate(' + (i*30+15) + ' 55 55)"/>';
+  s += '<circle cx="55" cy="55" r="15" fill="url(#seedG)" stroke="#33302E" stroke-width="1.4"/>';
+  // graines disposées selon l'angle d'or, comme dans un vrai cœur de tournesol
+  for (k=1;k<=46;k++){
+    var r = 1.85*Math.sqrt(k), a = k*137.508*Math.PI/180;
+    if (r > 13) break;
+    s += '<circle cx="' + (55 + r*Math.cos(a)).toFixed(2) + '" cy="' + (55 + r*Math.sin(a)).toFixed(2) + '" r="0.95" fill="' + (k%3 === 0 ? '#8A6A3C' : '#2A1C10') + '"/>';
+  }
+  return s + '<path d="M45 49 C47 45 51 43 55 42.5" stroke="#FFFFFF" stroke-width="1.4" opacity="0.35" fill="none" stroke-linecap="round"/>';
+}
+
+function bottleCapBody(){
+  var teeth = '', star = '', i, ang, rr;
+  for (i=0;i<42;i++){
+    ang = (i/42)*Math.PI*2 - Math.PI/2; rr = i%2 === 0 ? 40 : 34.5;
+    teeth += (i ? 'L' : 'M') + (55 + rr*Math.cos(ang)).toFixed(2) + ' ' + (55 + rr*Math.sin(ang)).toFixed(2) + ' ';
+  }
+  for (i=0;i<10;i++){
+    ang = -Math.PI/2 + i*Math.PI/5; rr = i%2 === 0 ? 11 : 4.6;
+    star += (i ? 'L' : 'M') + (55 + rr*Math.cos(ang)).toFixed(2) + ' ' + (55 + rr*Math.sin(ang)).toFixed(2) + ' ';
+  }
+  return '<circle cx="58" cy="59" r="40" fill="#33302E" opacity="0.16"/>' +
+    '<path d="' + teeth + 'Z" fill="url(#metalG)" stroke="#33302E" stroke-width="1.6" stroke-linejoin="round"/>' +
+    '<circle cx="55" cy="55" r="32.5" fill="#B8C2C5" stroke="#33302E" stroke-width="0.8" stroke-opacity="0.5"/>' +
+    '<circle cx="55" cy="55" r="28" fill="url(#capG)" stroke="#33302E" stroke-width="1.2"/>' +
+    '<circle cx="55" cy="55" r="22" fill="none" stroke="#F4F0E4" stroke-width="1.6"/>' +
+    '<path d="' + star + 'Z" fill="#BE3A34" stroke="#33302E" stroke-width="1" stroke-linejoin="round"/>' +
+    '<path d="M32 44 C36 35 44 29 53 28" stroke="#FFFFFF" stroke-width="2.2" opacity="0.45" fill="none" stroke-linecap="round"/>';
+}
+
+// vb = cadrage [x, y, largeur, hauteur] du dessin dans son repère d'origine (celui de Figma)
+var SPRITE_SRC = {
+  beetleSide: { vb:[6,50,310,122], body: [
+    '<ellipse cx="160" cy="163" rx="146" ry="6" fill="#33302E" opacity="0.18"/>',
+    '<path d="M290 121 C280 106 250 92 218 88 C206 80 200 66 190 61 C165 52 120 54 96 68 C70 82 40 100 30 124 L30 140 L292 140 Z" fill="url(#bodyG)" stroke="#33302E" stroke-width="2.4" stroke-linejoin="round"/>',
+    '<path d="M188 64 C166 56 124 57 102 70 C124 62 164 61 186 68 Z" fill="#F4F0E4" opacity="0.35"/>',
+    '<rect x="110" y="138" width="104" height="7" rx="2" fill="#3E3A38" stroke="#33302E" stroke-width="1.6"/>',
+    '<path d="M113 139.6 L211 139.6" stroke="#C9D1D3" stroke-width="1.2"/>',
+    '<path d="M57 139 A27 27 0 0 1 111 139 Z" fill="#1E1C1B"/><path d="M222 139 A27 27 0 0 1 276 139 Z" fill="#1E1C1B"/>',
+    svgWheel(84, 138, 22, '#BE3A34'), svgWheel(249, 138, 22, '#BE3A34'),
+    '<path d="M120 142 C114 118 102 100 82 99 C60 98 36 108 24 124 C20 130 20 136 24 139 L57 139 A27 27 0 0 1 111 139 L120 142 Z" fill="url(#fendG)" stroke="#33302E" stroke-width="2.4" stroke-linejoin="round"/>',
+    '<path d="M205 142 C210 118 226 98 250 96 C272 94 292 104 300 122 C302 130 300 136 296 139 L276 139 A27 27 0 0 0 222 139 L205 142 Z" fill="url(#fendG)" stroke="#33302E" stroke-width="2.4" stroke-linejoin="round"/>',
+    '<path d="M226 106 C238 98 256 96 272 99 C256 99 240 101 228 110 Z" fill="#F4F0E4" opacity="0.35"/>',
+    '<path d="M40 112 C52 103 70 100 92 102 C72 103 54 107 43 116 Z" fill="#F4F0E4" opacity="0.3"/>',
+    '<path d="M204 92 C198 80 194 70 186 67 C162 60 126 62 106 76 C100 82 98 88 100 92 Z" fill="url(#glassG)"/>',
+    '<path d="M176 70 L184 70 L172 90 L164 90 Z" fill="#FFFFFF" opacity="0.18"/><path d="M128 68 L133 67 L124 90 L119 90 Z" fill="#FFFFFF" opacity="0.14"/>',
+    '<path d="M148.5 61 L152.5 61 L153.5 92 L149.5 92 Z" fill="#C9D1D3"/><path d="M193 69 L196 92" stroke="#C9D1D3" stroke-width="2"/>',
+    '<path d="M204 92 C198 80 194 70 186 67 C162 60 126 62 106 76 C100 82 98 88 100 92 Z" fill="none" stroke="#C9D1D3" stroke-width="2.4" stroke-linejoin="round"/>',
+    '<path d="M104 96 L204 96" stroke="#DA5A52" stroke-width="1.6" stroke-linecap="round"/>',
+    '<path d="M152 94 C150 112 150 126 152 138 M206 94 L207 111" fill="none" stroke="#33302E" stroke-width="1.4" opacity="0.7"/>',
+    '<rect x="158" y="99" width="12" height="3.2" rx="1.6"' + CHROME + ' stroke-width="0.8"/>',
+    '<ellipse cx="287" cy="108" rx="7" ry="9"' + CHROME + ' stroke-width="1.6"/><ellipse cx="289" cy="108" rx="4.6" ry="6.6" fill="#FBF6E6"/>',
+    '<ellipse cx="27" cy="117" rx="4" ry="6" fill="#D2603A" stroke="#33302E" stroke-width="1.2"/>',
+    '<rect x="289" y="126" width="6" height="3" fill="#3E3A38"/>',
+    '<path d="M293 125 C300 124 308 125 311 127 C311 130 308 131 300 131 L293 131 Z"' + CHROME + ' stroke-width="1.4" stroke-linejoin="round"/>',
+    '<rect x="301" y="116" width="4" height="18" rx="2"' + CHROME + ' stroke-width="1.2"/>',
+    '<rect x="25" y="126" width="6" height="3" fill="#3E3A38"/>',
+    '<path d="M27 125 C20 124 12 125 9 127 C9 130 12 131 20 131 L27 131 Z"' + CHROME + ' stroke-width="1.4" stroke-linejoin="round"/>',
+    '<rect x="15" y="116" width="4" height="18" rx="2"' + CHROME + ' stroke-width="1.2"/>'
+  ].join('') },
+
+  combiSide: { vb:[14,8,332,170], body: [
+    '<path d="M72 33 L298 33" stroke="#33302E" stroke-width="2.4" stroke-linecap="round"/>',
+    '<path d="M84 33 L84 40 M150 33 L150 40 M218 33 L218 40 M286 33 L286 40" stroke="#33302E" stroke-width="2"/>',
+    '<path d="M80 25 L86 12 L95 12 C93 17 95 21 100 25 Z" fill="#33302E"/>',
+    '<path d="M70 30 C70 26 76 25 90 25 L252 25 C282 25 302 23 314 17 C308 26 292 32 258 33 L90 33 C76 33 70 33 70 30 Z" fill="#F4F0E4" stroke="#33302E" stroke-width="1.8" stroke-linejoin="round"/>',
+    '<path d="M80 29 L256 29 C282 29 300 26 310 21" fill="none" stroke="#BE3A34" stroke-width="2.4" stroke-linecap="round"/>',
+    '<rect x="112" y="23" width="4" height="12" rx="1" fill="#4E4735"/><rect x="250" y="22" width="4" height="13" rx="1" fill="#4E4735"/>',
+    '<path d="' + COMBI_SIDE_OUTLINE + '" fill="url(#tealG)"/>',
+    '<path d="M64 40 L300 40 C316 40 322 48 324 60 C327 76 329 96 330 116 C320 104 306 99 286 99 L31 99 C30.5 88 31 76 34 66 C38 50 48 40 64 40 Z" fill="url(#ivoryG)"/>',
+    '<path d="M70 44.5 L296 44.5" stroke="#FFFFFF" stroke-width="2" opacity="0.6" stroke-linecap="round"/>',
+    '<path d="M32 99 L286 99 C306 99 320 104 330 116" fill="none" stroke="#C9D1D3" stroke-width="2.2"/>',
+    '<path d="M32 101.5 L286 101.5 C305 101.5 318 106 328 118" fill="none" stroke="#33302E" stroke-width="0.9" opacity="0.5"/>',
+    svgRepeat(7, function(i){ return '<rect x="' + (96 + i*22) + '" y="45" width="16" height="8" rx="3"' + GLASS + ' stroke-width="1.4"/>'; }),
+    '<path d="M84 58 L84 92 L40 92 C38 80 40 66 50 58 Z"' + GLASS + ' stroke-width="2" stroke-linejoin="round"/>',
+    '<rect x="92" y="58" width="48" height="34" rx="6"' + GLASS + ' stroke-width="2"/>',
+    '<rect x="150" y="58" width="44" height="34" rx="6"' + GLASS + ' stroke-width="2"/>',
+    '<rect x="204" y="58" width="44" height="34" rx="6"' + GLASS + ' stroke-width="2"/>',
+    '<path d="M261 58 L299 58 C306 58 310 63 312 70 L314 92 L261 92 Z"' + GLASS + ' stroke-width="2" stroke-linejoin="round"/>',
+    '<path d="M301 60 L303 92" stroke="#C9D1D3" stroke-width="2"/>',
+    '<path d="M316 50 C322 54 325 64 327 76 L329 94 L322 94 C321 78 319 62 313 52 Z"' + GLASS + ' stroke-width="1.4" stroke-linejoin="round"/>',
+    [70,120,176,230,288].map(function(x){ return '<path d="M' + x + ' 60 L' + (x+7) + ' 60 L' + (x-4) + ' 90 L' + (x-11) + ' 90 Z" fill="#FFFFFF" opacity="0.16"/>'; }).join(''),
+    '<path d="M146 55 L146 150 M199 55 L199 150 M252 55 L252 150 M256 129 L256 55 L312 55" fill="none" stroke="#33302E" stroke-width="1.3" opacity="0.6"/>',
+    '<rect x="189" y="112" width="7" height="3" rx="1.5"' + CHROME + ' stroke-width="0.8"/>',
+    '<rect x="202" y="112" width="7" height="3" rx="1.5"' + CHROME + ' stroke-width="0.8"/>',
+    '<rect x="261" y="106" width="10" height="3" rx="1.5"' + CHROME + ' stroke-width="0.8"/>',
+    svgRepeat(8, function(i){ return '<rect x="' + (46 + i*4) + '" y="106" width="2" height="13" rx="1" fill="#1E1C1B" opacity="0.75"/>'; }),
+    '<path d="M75 152 A29 29 0 0 1 133 152 Z" fill="#1E1C1B"/><path d="M243 152 A29 29 0 0 1 301 152 Z" fill="#1E1C1B"/>',
+    svgWheel(104, 152, 23, '#EDE7D6'), svgWheel(272, 152, 23, '#EDE7D6'),
+    '<path d="M312 70 L324 62" stroke="#33302E" stroke-width="1.6" stroke-linecap="round"/>',
+    '<ellipse cx="327" cy="60" rx="4" ry="5"' + CHROME + ' stroke-width="1.2"/>',
+    '<path d="M329 104 C335 105 337 110 337 113 C337 117 335 121 330 122 Z"' + CHROME + ' stroke-width="1.3" stroke-linejoin="round"/>',
+    '<path d="M331 107 C334 108 335 111 335 113 C335 115 334 118 331 119 Z" fill="#FBF6E6"/>',
+    '<circle cx="33" cy="112" r="4" fill="#D2603A" stroke="#33302E" stroke-width="1.2"/>',
+    '<path d="M322 141 L338 141 C341 141 342 143 342 145 C342 147 341 149 338 149 L322 149 Z"' + CHROME + ' stroke-width="1.4" stroke-linejoin="round"/>',
+    '<rect x="332" y="133" width="4" height="19" rx="2"' + CHROME + ' stroke-width="1.2"/>',
+    '<path d="M38 141 L22 141 C19 141 18 143 18 145 C18 147 19 149 22 149 L38 149 Z"' + CHROME + ' stroke-width="1.4" stroke-linejoin="round"/>',
+    '<rect x="24" y="133" width="4" height="19" rx="2"' + CHROME + ' stroke-width="1.2"/>',
+    '<path d="' + COMBI_SIDE_OUTLINE + '" fill="none" stroke="#33302E" stroke-width="2.4" stroke-linejoin="round"/>'
+  ].join('') },
+
+  beetleTop: { vb:[38,8,128,288], body: [
+    '<ellipse cx="106" cy="156" rx="58" ry="138" fill="#33302E" opacity="0.16"/>',
+    '<rect x="50" y="104" width="10" height="86" rx="3" fill="#3E3A38" stroke="#33302E" stroke-width="1.6"/>',
+    '<rect x="140" y="104" width="10" height="86" rx="3" fill="#3E3A38" stroke="#33302E" stroke-width="1.6"/>',
+    '<path d="M60 114 L50 110 M140 114 L150 110" stroke="#33302E" stroke-width="1.6" stroke-linecap="round"/>',
+    '<ellipse cx="47" cy="109" rx="4.5" ry="3.2"' + CHROME + ' stroke-width="1.2"/><ellipse cx="153" cy="109" rx="4.5" ry="3.2"' + CHROME + ' stroke-width="1.2"/>',
+    '<ellipse cx="60" cy="68" rx="14" ry="40" fill="url(#bodyH)" stroke="#33302E" stroke-width="2.2"/>',
+    '<ellipse cx="140" cy="68" rx="14" ry="40" fill="url(#bodyH)" stroke="#33302E" stroke-width="2.2"/>',
+    '<ellipse cx="60" cy="226" rx="15" ry="41" fill="url(#bodyH)" stroke="#33302E" stroke-width="2.2"/>',
+    '<ellipse cx="140" cy="226" rx="15" ry="41" fill="url(#bodyH)" stroke="#33302E" stroke-width="2.2"/>',
+    '<ellipse cx="56" cy="60" rx="4" ry="14" fill="#F4F0E4" opacity="0.3"/><ellipse cx="136" cy="60" rx="4" ry="14" fill="#F4F0E4" opacity="0.3"/>',
+    '<ellipse cx="56" cy="218" rx="4" ry="15" fill="#F4F0E4" opacity="0.3"/><ellipse cx="136" cy="218" rx="4" ry="15" fill="#F4F0E4" opacity="0.3"/>',
+    '<ellipse cx="60" cy="34" rx="7.5" ry="5"' + CHROME + ' stroke-width="1.2"/><ellipse cx="60" cy="33" rx="4.5" ry="3" fill="#FBF6E6"/>',
+    '<ellipse cx="140" cy="34" rx="7.5" ry="5"' + CHROME + ' stroke-width="1.2"/><ellipse cx="140" cy="33" rx="4.5" ry="3" fill="#FBF6E6"/>',
+    '<ellipse cx="60" cy="262" rx="6" ry="4" fill="#D2603A" stroke="#33302E" stroke-width="1.2"/><ellipse cx="140" cy="262" rx="6" ry="4" fill="#D2603A" stroke="#33302E" stroke-width="1.2"/>',
+    '<path d="M100 22 C118 22 130 30 132 50 C136 80 140 110 141 150 C142 200 138 250 128 272 C120 282 80 282 72 272 C62 250 58 200 59 150 C60 110 64 80 68 50 C70 30 82 22 100 22 Z" fill="url(#bodyH)" stroke="#33302E" stroke-width="2.2" stroke-linejoin="round"/>',
+    '<path d="M60 124 C62 150 62 180 62 200 L68 204 C66 180 66 150 69 120 Z" fill="url(#glassG)"/>',
+    '<path d="M140 124 C138 150 138 180 138 200 L132 204 C134 180 134 150 131 120 Z" fill="url(#glassG)"/>',
+    '<path d="M100 27 C115 27 125 35 126 52 L127 93 C117 96 83 96 73 93 L74 52 C75 35 85 27 100 27 Z" fill="#C8433C" stroke="#33302E" stroke-width="1.2" stroke-opacity="0.6"/>',
+    '<ellipse cx="90" cy="58" rx="7" ry="22" fill="#F4F0E4" opacity="0.25"/>',
+    '<path d="M100 32 L100 90" stroke="#33302E" stroke-width="1" opacity="0.35"/>',
+    '<rect x="96" y="30" width="8" height="3" rx="1.5"' + CHROME + ' stroke-width="0.7"/>',
+    '<path d="M72 96 C82 99 118 99 128 96 L131 119 C118 123 82 123 69 119 Z"' + GLASS + ' stroke-width="1.8" stroke-linejoin="round"/>',
+    '<path d="M84 116 L96 104 M104 116 L116 104" stroke="#33302E" stroke-width="1.2" stroke-linecap="round"/>',
+    '<path d="M78 100 L86 100 L80 116 L74 116 Z" fill="#FFFFFF" opacity="0.15"/>',
+    '<path d="M69 121 C82 125 118 125 131 121 C134 150 134 180 130 204 C118 208 82 208 70 204 C66 180 66 150 69 121 Z" fill="url(#bodyH)" stroke="#33302E" stroke-width="1.4" stroke-opacity="0.7"/>',
+    '<ellipse cx="88" cy="158" rx="9" ry="28" fill="#F4F0E4" opacity="0.28"/>',
+    '<ellipse cx="100" cy="215" rx="22" ry="7"' + GLASS + ' stroke-width="1.6"/>',
+    '<path d="M75 225 C87 222 113 222 125 225 L123 265 C113 271 87 271 77 265 Z" fill="#B3352F" stroke="#33302E" stroke-width="1.2" stroke-opacity="0.7"/>',
+    svgRepeat(10, function(i){ return '<rect x="' + [83,90,97.5,105,112][i%5] + '" y="' + (i < 5 ? 231 : 237) + '" width="5" height="2.4" rx="1.2" fill="#1E1C1B" opacity="0.7"/>'; }),
+    '<rect x="97" y="257" width="6" height="3" rx="1.5"' + CHROME + ' stroke-width="0.7"/>',
+    '<path d="M56 17 C80 13 120 13 144 17 L144 22 C120 18.5 80 18.5 56 22 Z"' + CHROME + ' stroke-width="1.3" stroke-linejoin="round"/>',
+    '<rect x="76" y="11" width="4" height="14" rx="2"' + CHROME + ' stroke-width="1.1"/><rect x="120" y="11" width="4" height="14" rx="2"' + CHROME + ' stroke-width="1.1"/>',
+    '<path d="M56 281 C80 285 120 285 144 281 L144 286 C120 289.5 80 289.5 56 286 Z"' + CHROME + ' stroke-width="1.3" stroke-linejoin="round"/>',
+    '<rect x="76" y="277" width="4" height="14" rx="2"' + CHROME + ' stroke-width="1.1"/><rect x="120" y="277" width="4" height="14" rx="2"' + CHROME + ' stroke-width="1.1"/>'
+  ].join('') },
+
+  combiTop: { vb:[28,8,144,304], body: [
+    '<ellipse cx="106" cy="162" rx="62" ry="148" fill="#33302E" opacity="0.16"/>',
+    '<rect x="41" y="62" width="6" height="34" rx="3" fill="#2B2826"/><rect x="153" y="62" width="6" height="34" rx="3" fill="#2B2826"/>',
+    '<rect x="41" y="222" width="6" height="34" rx="3" fill="#2B2826"/><rect x="153" y="222" width="6" height="34" rx="3" fill="#2B2826"/>',
+    '<path d="M47 58 L37 51 M153 58 L163 51" stroke="#33302E" stroke-width="1.6" stroke-linecap="round"/>',
+    '<ellipse cx="34" cy="49" rx="4" ry="5"' + CHROME + ' stroke-width="1.2"/><ellipse cx="166" cy="49" rx="4" ry="5"' + CHROME + ' stroke-width="1.2"/>',
+    '<path d="M60 21 A8 5 0 0 1 76 21 Z"' + CHROME + ' stroke-width="1.1"/><path d="M124 21 A8 5 0 0 1 140 21 Z"' + CHROME + ' stroke-width="1.1"/>',
+    '<rect x="45" y="22" width="110" height="270" rx="24" fill="url(#tealH)" stroke="#33302E" stroke-width="2.2"/>',
+    svgRepeat(8, function(i){ return '<rect x="' + (i < 4 ? 46 : 150) + '" y="' + (246 + (i%4)*5) + '" width="4" height="2.4" rx="1" fill="#1E1C1B" opacity="0.7"/>'; }),
+    '<rect x="51" y="29" width="98" height="257" rx="20" fill="url(#ivoryH)" stroke="#33302E" stroke-width="1" stroke-opacity="0.45"/>',
+    '<path d="M56 36 C64 31 90 30 98 30 L98 51 L54 53 C54 45 54 40 56 36 Z"' + GLASS + ' stroke-width="1.6" stroke-linejoin="round"/>',
+    '<path d="M144 36 C136 31 110 30 102 30 L102 51 L146 53 C146 45 146 40 144 36 Z"' + GLASS + ' stroke-width="1.6" stroke-linejoin="round"/>',
+    '<path d="M62 36 L70 34 L66 48 L59 49 Z M108 33 L116 33 L112 48 L105 48 Z" fill="#FFFFFF" opacity="0.16"/>',
+    '<rect x="56" y="58" width="88" height="222" rx="14" fill="none" stroke="#33302E" stroke-opacity="0.25" stroke-width="1"/>',
+    svgRepeat(14, function(i){ return '<rect x="' + (i < 7 ? 55 : 139) + '" y="' + (68 + (i%7)*24) + '" width="6" height="14" rx="2.5"' + GLASS + ' stroke-width="1"/>'; }),
+    '<rect x="70" y="80" width="60" height="120" rx="8" fill="#5A5654" stroke="#33302E" stroke-width="1.4"/>',
+    '<path d="M72 100 L128 100 M72 120 L128 120 M72 140 L128 140 M72 160 L128 160 M72 180 L128 180" stroke="#403D3B" stroke-width="1.6"/>',
+    '<path d="M72 102 L128 102 M72 122 L128 122 M72 142 L128 142 M72 162 L128 162 M72 182 L128 182" stroke="#7A7572" stroke-width="0.8"/>',
+    '<rect x="64" y="40" width="7" height="230" rx="3.5" fill="#FFFFFF" opacity="0.22"/>',
+    '<rect x="74" y="260" width="52" height="12" rx="4"' + GLASS + ' stroke-width="1.4"/>',
+    '<path d="M48 15 L152 15 C154 15 155 16 155 17.5 C155 19 154 20 152 20 L48 20 C46 20 45 19 45 17.5 C45 16 46 15 48 15 Z"' + CHROME + ' stroke-width="1.2"/>',
+    '<rect x="60" y="11" width="4" height="12" rx="2"' + CHROME + ' stroke-width="1"/><rect x="136" y="11" width="4" height="12" rx="2"' + CHROME + ' stroke-width="1"/>',
+    '<path d="M48 294 L152 294 C154 294 155 295 155 296.5 C155 298 154 299 152 299 L48 299 C46 299 45 298 45 296.5 C45 295 46 294 48 294 Z"' + CHROME + ' stroke-width="1.2"/>',
+    '<circle cx="52" cy="287" r="3" fill="#D2603A" stroke="#33302E" stroke-width="1"/><circle cx="148" cy="287" r="3" fill="#D2603A" stroke="#33302E" stroke-width="1"/>'
+  ].join('') },
+
+  pickupTop: { vb:[28,8,144,304], body: [
+    '<ellipse cx="106" cy="162" rx="62" ry="148" fill="#33302E" opacity="0.16"/>',
+    '<rect x="41" y="62" width="6" height="34" rx="3" fill="#2B2826"/><rect x="153" y="62" width="6" height="34" rx="3" fill="#2B2826"/>',
+    '<rect x="41" y="222" width="6" height="34" rx="3" fill="#2B2826"/><rect x="153" y="222" width="6" height="34" rx="3" fill="#2B2826"/>',
+    '<path d="M47 58 L37 51 M153 58 L163 51" stroke="#33302E" stroke-width="1.6" stroke-linecap="round"/>',
+    '<ellipse cx="34" cy="49" rx="4" ry="5"' + CHROME + ' stroke-width="1.2"/><ellipse cx="166" cy="49" rx="4" ry="5"' + CHROME + ' stroke-width="1.2"/>',
+    '<path d="M60 21 A8 5 0 0 1 76 21 Z"' + CHROME + ' stroke-width="1.1"/><path d="M124 21 A8 5 0 0 1 140 21 Z"' + CHROME + ' stroke-width="1.1"/>',
+    '<path d="M69 22 L131 22 C144 22 155 33 155 46 L155 120 L45 120 L45 46 C45 33 56 22 69 22 Z" fill="url(#slateH)" stroke="#33302E" stroke-width="2.2" stroke-linejoin="round"/>',
+    '<path d="M72 29 L128 29 C140 29 148 37 148 49 L148 114 L52 114 L52 49 C52 37 60 29 72 29 Z" fill="url(#ivoryH)" stroke="#33302E" stroke-width="1" stroke-opacity="0.45"/>',
+    '<path d="M57 36 C64 31 90 30 98 30 L98 51 L54 53 C54 45 55 40 57 36 Z"' + GLASS + ' stroke-width="1.6" stroke-linejoin="round"/>',
+    '<path d="M143 36 C136 31 110 30 102 30 L102 51 L146 53 C146 45 145 40 143 36 Z"' + GLASS + ' stroke-width="1.6" stroke-linejoin="round"/>',
+    '<path d="M63 36 L71 34 L67 48 L60 49 Z" fill="#FFFFFF" opacity="0.16"/>',
+    '<rect x="64" y="102" width="72" height="8" rx="3"' + GLASS + ' stroke-width="1.2"/>',
+    '<rect x="45" y="120" width="110" height="4" fill="#1E1C1B"/>',
+    '<rect x="45" y="124" width="110" height="166" rx="4" fill="url(#slateH)" stroke="#33302E" stroke-width="2.2"/>',
+    '<rect x="52" y="130" width="96" height="154" rx="2" fill="url(#plankG)" stroke="#33302E" stroke-width="1.2" stroke-opacity="0.6"/>',
+    '<path d="M64 131 L64 283 M76 131 L76 283 M88 131 L88 283 M100 131 L100 283 M112 131 L112 283 M124 131 L124 283 M136 131 L136 283" stroke="#8A6F48" stroke-width="1.2"/>',
+    '<rect x="60" y="148" width="36" height="32" rx="2" fill="#C8A36A" stroke="#33302E" stroke-width="1.6"/>',
+    '<path d="M62 150 L94 178 M94 150 L62 178" stroke="#8A6F48" stroke-width="1.6"/>',
+    '<rect x="102" y="204" width="38" height="36" rx="2" fill="#C8A36A" stroke="#33302E" stroke-width="1.6"/>',
+    '<path d="M104 206 L138 238 M138 206 L104 238" stroke="#8A6F48" stroke-width="1.6"/>',
+    '<path d="M49 132 L49 282 M151 132 L151 282" stroke="#FFFFFF" stroke-width="1" opacity="0.3"/>',
+    '<rect x="50" y="285" width="100" height="5" rx="1.5" fill="#3A5966" stroke="#33302E" stroke-width="1"/>',
+    '<path d="M48 294 L152 294 C154 294 155 295 155 296.5 C155 298 154 299 152 299 L48 299 C46 299 45 298 45 296.5 C45 295 46 294 48 294 Z"' + CHROME + ' stroke-width="1.2"/>',
+    '<circle cx="52" cy="288" r="3" fill="#D2603A" stroke="#33302E" stroke-width="1"/><circle cx="148" cy="288" r="3" fill="#D2603A" stroke="#33302E" stroke-width="1"/>',
+    '<path d="M48 15 L152 15 C154 15 155 16 155 17.5 C155 19 154 20 152 20 L48 20 C46 20 45 19 45 17.5 C45 16 46 15 48 15 Z"' + CHROME + ' stroke-width="1.2"/>',
+    '<rect x="60" y="11" width="4" height="12" rx="2"' + CHROME + ' stroke-width="1"/><rect x="136" y="11" width="4" height="12" rx="2"' + CHROME + ' stroke-width="1"/>'
+  ].join('') },
+
+  trailerRed:  { vb:[12,4,96,182], body: caravanBody('#BE3A34', '#8E2B27') },
+  trailerTeal: { vb:[12,4,96,182], body: caravanBody('#3E8496', '#2A5F6E') },
+
+  cone: { vb:[12,6,80,90], body: [
+    '<ellipse cx="54" cy="84" rx="38" ry="10" fill="#33302E" opacity="0.2"/>',
+    '<rect x="14" y="66" width="72" height="18" rx="7" fill="#2B2826"/>',
+    '<rect x="14" y="62" width="72" height="17" rx="7" fill="#454140" stroke="#33302E" stroke-width="1.8"/>',
+    '<path d="M50 10 C52 10 53 11 54 13 L68 66 C62 71 38 71 32 66 L46 13 C47 11 48 10 50 10 Z" fill="url(#coneG)" stroke="#33302E" stroke-width="2" stroke-linejoin="round"/>',
+    '<path d="M42.4 26 Q50 28.5 57.6 26 L59.7 34 Q50 37 40.3 34 Z M37.7 44 Q50 47 62.3 44 L64.4 52 Q50 55.5 35.6 52 Z" fill="#F4F0E4"/>',
+    '<ellipse cx="50" cy="12.5" rx="3.2" ry="1.4" fill="#1E1C1B"/>',
+    '<path d="M45 17 L41 60" stroke="#FFFFFF" stroke-width="2" opacity="0.35" stroke-linecap="round"/>'
+  ].join('') },
+
+  pothole: { vb:[0,8,136,88], body: [
+    '<path d="M8 52 L18 30 L40 20 L66 22 L92 16 L118 32 L124 54 L110 78 L84 90 L52 88 L24 80 Z" fill="#555E62" opacity="0.55"/>',
+    '<path d="M18 52 L28 34 L46 28 L68 30 L90 26 L108 38 L112 56 L100 72 L78 80 L50 78 L28 70 Z" fill="url(#holeG)" stroke="#1E1C1B" stroke-width="1.8" stroke-linejoin="round"/>',
+    '<path d="M100 72 L78 80 L50 78 L28 70 L32 66 L52 72 L78 73 L96 66 Z" fill="#6B7478" opacity="0.6"/>',
+    '<path d="M38 56 C44 48 60 46 74 48 C88 50 96 56 92 62 C86 68 64 70 50 66 C42 64 36 60 38 56 Z" fill="url(#waterG)"/>',
+    '<path d="M52 54 C60 51 70 51 78 53 M60 60 L70 60" stroke="#BFDDE3" stroke-width="1.5" opacity="0.65" stroke-linecap="round" fill="none"/>',
+    '<path d="M112 56 L124 62 L132 58 M92 26 L98 12 M18 52 L4 56 M50 78 L46 92" stroke="#1E1C1B" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+    [[14,40,2.5],[104,84,2],[120,40,2.4],[34,86,1.8],[70,14,2]].map(function(p){ return '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="' + p[2] + '" fill="#8C969A" stroke="#33302E" stroke-width="0.8"/>'; }).join('')
+  ].join('') },
+
+  cactus: { vb:[14,4,74,140], body: [
+    '<ellipse cx="52" cy="138" rx="34" ry="5" fill="#33302E" opacity="0.18"/>',
+    '<path d="M38 96 L26 96 C20 96 17 92 17 86 L17 58 C17 52 21 48 26 48 C31 48 34 52 34 58 L34 82 L38 82 Z" fill="url(#cacG)" stroke="#33302E" stroke-width="2" stroke-linejoin="round"/>',
+    '<path d="M62 78 L73 78 C79 78 82 74 82 68 L82 42 C82 36 78 32 73 32 C68 32 66 36 66 42 L66 64 L62 64 Z" fill="url(#cacG)" stroke="#33302E" stroke-width="2" stroke-linejoin="round"/>',
+    '<rect x="37" y="18" width="26" height="120" rx="13" fill="url(#cacG)" stroke="#33302E" stroke-width="2"/>',
+    '<path d="M44 24 L44 134 M50 20 L50 136 M56 24 L56 134" stroke="#3F5142" stroke-width="1.3" opacity="0.55"/>',
+    '<path d="M25.5 52 L25.5 90 M73.5 36 L73.5 72" stroke="#3F5142" stroke-width="1.2" opacity="0.5"/>',
+    '<path d="M44 34 l-3 -2 M44 34 l3 -2 M56 48 l-3 -2 M56 48 l3 -2 M44 70 l-3 -2 M44 70 l3 -2 M56 96 l-3 -2 M56 96 l3 -2 M44 116 l-3 -2 M44 116 l3 -2 M25.5 62 l-3 -2 M25.5 62 l3 -2 M73.5 50 l-3 -2 M73.5 50 l3 -2" stroke="#F4F0E4" stroke-width="1" stroke-linecap="round"/>',
+    '<rect x="40.5" y="26" width="3" height="100" rx="1.5" fill="#FFFFFF" opacity="0.2"/>',
+    svgRepeat(5, function(i){ return '<ellipse cx="50" cy="10" rx="3.2" ry="5" fill="#FBF6E6" stroke="#33302E" stroke-width="0.8" transform="rotate(' + (i*72) + ' 50 16)"/>'; }),
+    '<circle cx="50" cy="16" r="2.8" fill="#CFA24A" stroke="#33302E" stroke-width="0.8"/>',
+    '<ellipse cx="50" cy="137" rx="22" ry="4" fill="#D9CAB3" stroke="#33302E" stroke-width="1" stroke-opacity="0.4"/>'
+  ].join('') },
+
+  rock: { vb:[-2,16,112,70], body: [
+    '<ellipse cx="56" cy="80" rx="50" ry="5" fill="#33302E" opacity="0.18"/>',
+    '<path d="M10 78 C8 64 14 46 28 36 C38 26 54 20 68 24 C84 28 98 42 102 58 C104 66 102 74 100 78 Z" fill="url(#rockG)" stroke="#33302E" stroke-width="2" stroke-linejoin="round"/>',
+    '<path d="M28 36 C38 26 54 20 68 24 L60 40 L32 50 Z" fill="#CFC7B7" opacity="0.8"/>',
+    '<path d="M68 24 C84 28 98 42 102 58 C104 66 102 74 100 78 L74 78 L60 40 Z" fill="#6B6257" opacity="0.55"/>',
+    '<path d="M60 40 L74 78 M32 50 L22 78 M60 40 L40 62" stroke="#33302E" stroke-width="1.1" opacity="0.4" fill="none"/>',
+    '<path d="M84 36 L80 46 L86 52" stroke="#33302E" stroke-width="1" opacity="0.5" fill="none" stroke-linejoin="round"/>',
+    '<circle cx="46" cy="34" r="2.2" fill="#8FA283" opacity="0.75"/><circle cx="50.5" cy="37" r="1.4" fill="#8FA283" opacity="0.75"/><circle cx="80" cy="60" r="1.8" fill="#8FA283" opacity="0.7"/>',
+    '<path d="M0 78 C0 70 6 64 14 64 C22 64 26 70 26 78 Z" fill="#A39A8B" stroke="#33302E" stroke-width="1.6" stroke-linejoin="round"/>',
+    '<path d="M5 70 C8 67 12 66 15 66" stroke="#FFFFFF" stroke-width="1.4" opacity="0.35" fill="none" stroke-linecap="round"/>',
+    '<circle cx="32" cy="79" r="2" fill="#928878" stroke="#33302E" stroke-width="0.8"/><circle cx="108" cy="79" r="1.6" fill="#928878" stroke="#33302E" stroke-width="0.8"/>'
+  ].join('') },
+
+  log: { vb:[2,3,138,58], body: [
+    '<ellipse cx="72" cy="55" rx="66" ry="4" fill="#33302E" opacity="0.18"/>',
+    '<path d="M4 56 C20 46 40 50 50 56 Z" fill="#D9CAB3"/>',
+    '<path d="M82 21 L90 6 L97 8 L92 21 Z" fill="url(#driftG)" stroke="#33302E" stroke-width="1.8" stroke-linejoin="round"/>',
+    '<path d="M20 22 C50 18 104 18 128 22 C134 27 134 47 128 52 C104 56 50 56 20 52 Z" fill="url(#driftG)" stroke="#33302E" stroke-width="2" stroke-linejoin="round"/>',
+    '<path d="M30 30 C50 28 70 31 90 29 C104 28 116 30 124 32 M28 38 C48 36 66 40 86 37 C100 36 112 39 126 40 M32 46 C52 45 72 48 94 45 C108 44 118 46 124 47" stroke="#6B6257" stroke-width="1" opacity="0.6" fill="none" stroke-linecap="round"/>',
+    '<ellipse cx="104" cy="39" rx="4" ry="2.6" fill="#6B6257" stroke="#33302E" stroke-width="0.9"/>',
+    '<path d="M40 24 C70 21 100 21 122 25" stroke="#FFFFFF" stroke-width="2" opacity="0.35" fill="none" stroke-linecap="round"/>',
+    '<ellipse cx="20" cy="37" rx="7" ry="15" fill="#DDD2BD" stroke="#33302E" stroke-width="1.8"/>',
+    '<ellipse cx="20" cy="37" rx="4.5" ry="10" fill="none" stroke="#A89C88" stroke-width="1"/><ellipse cx="20" cy="37" rx="2" ry="5" fill="none" stroke="#A89C88" stroke-width="1"/>',
+    '<path d="M92 56 C104 48 124 48 138 56 Z" fill="#D9CAB3"/>'
+  ].join('') },
+
+  jerrycan: { vb:[10,8,84,114], body: [
+    '<ellipse cx="54" cy="114" rx="36" ry="6" fill="#33302E" opacity="0.18"/>',
+    '<rect x="40" y="14" width="38" height="16" rx="4" fill="url(#oliveH)" stroke="#33302E" stroke-width="2"/>',
+    '<rect x="44" y="18" width="8" height="7" rx="2" fill="#2B2826"/><rect x="55" y="18" width="8" height="7" rx="2" fill="#2B2826"/><rect x="66" y="18" width="8" height="7" rx="2" fill="#2B2826"/>',
+    '<path d="M34 28 L76 28 C79 28 82 31 82 34 L82 106 C82 109 79 112 76 112 L24 112 C21 112 18 109 18 106 L18 44 Z" fill="url(#oliveH)" stroke="#33302E" stroke-width="2.2" stroke-linejoin="round"/>',
+    '<rect x="24" y="42" width="52" height="64" rx="4" fill="none" stroke="#3F4A25" stroke-width="1.6"/>',
+    '<rect x="25.5" y="43.5" width="49" height="61" rx="3" fill="none" stroke="#98A56E" stroke-width="0.8" opacity="0.6"/>',
+    '<path d="M29 47 L71 101 M71 47 L29 101" stroke="#3F4A25" stroke-width="7" stroke-linecap="round"/>',
+    '<path d="M29 47 L71 101 M71 47 L29 101" stroke="#98A56E" stroke-width="3.4" stroke-linecap="round"/>',
+    '<path d="M50 29 L50 111" stroke="#3F4A25" stroke-width="1" opacity="0.45"/>',
+    '<path d="M14 32 L24 22 L32 30 L22 40 Z" fill="url(#brassG)" stroke="#33302E" stroke-width="1.6" stroke-linejoin="round"/>',
+    '<path d="M24 22 L30 14" stroke="#33302E" stroke-width="2" stroke-linecap="round"/>',
+    '<circle cx="30.5" cy="13.5" r="2.2" fill="url(#brassG)" stroke="#33302E" stroke-width="1"/>',
+    '<path d="M22 50 L22 104" stroke="#FFFFFF" stroke-width="2.4" opacity="0.3" stroke-linecap="round"/>'
+  ].join('') },
+
+  surfboard: { vb:[14,4,54,200], body: [
+    '<path d="M43 11 C57 23 65 63 65 113 C65 153 61 179 55 193 L31 193 C25 179 21 153 21 113 C21 63 29 23 43 11 Z" fill="#33302E" opacity="0.16"/>',
+    '<path d="M40 8 C54 20 62 60 62 110 C62 150 58 176 52 190 L28 190 C22 176 18 150 18 110 C18 60 26 20 40 8 Z" fill="#3E8496" stroke="#33302E" stroke-width="2" stroke-linejoin="round"/>',
+    '<path d="M40 15 C51 26 57 62 57 110 C57 148 54 172 49 185 L31 185 C26 172 23 148 23 110 C23 62 29 26 40 15 Z" fill="url(#deckH)"/>',
+    '<path d="M36 34 L36 176 M44 34 L44 176" stroke="#BE3A34" stroke-width="2.2" stroke-linecap="round"/>',
+    '<path d="M40 16 L40 184" stroke="#8A6F48" stroke-width="1.4"/>',
+    '<circle cx="40" cy="66" r="7" fill="url(#brassG)" stroke="#33302E" stroke-width="1.2"/><circle cx="40" cy="66" r="3" fill="#F4F0E4"/>',
+    '<path d="M28 60 C27 80 27 130 28 160" stroke="#FFFFFF" stroke-width="2.4" opacity="0.35" stroke-linecap="round" fill="none"/>',
+    '<circle cx="40" cy="178" r="2" fill="#33302E"/>',
+    '<path d="M40 178 C48 182 58 186 58 194 C58 200 48 200 48 194 C48 188 58 188 64 196" fill="none" stroke="#2B2826" stroke-width="1.6" stroke-linecap="round"/>'
+  ].join('') },
+
+  sunflower: { vb:[11,11,90,90], body: sunflowerBody() },
+  bottlecap: { vb:[13,13,88,88], body: bottleCapBody() }
+};
+
+var SPRITES = {};
+function loadSprites(onDone){
+  var names = Object.keys(SPRITE_SRC), left = names.length;
+  function done(){ if (--left === 0) onDone(); }
+  names.forEach(function(name){
+    var src = SPRITE_SRC[name], vb = src.vb;
+    var k = 480 / Math.max(vb[2], vb[3]);
+    var cw = Math.round(vb[2]*k), ch = Math.round(vb[3]*k);
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + vb.join(' ') + '" width="' + cw + '" height="' + ch + '">' + SPRITE_DEFS + src.body + '</svg>';
+    var img = new Image();
+    img.onload = function(){
+      var c = document.createElement('canvas');
+      c.width = cw; c.height = ch;
+      c.getContext('2d').drawImage(img, 0, 0, cw, ch);
+      SPRITES[name] = { canvas:c, vb:vb };
+      done();
+    };
+    img.onerror = done;
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  });
+}
+
+// Dessine un sprite de façon que le point (ax, ay) de son repère d'origine tombe sur
+// (x, y), à l'échelle s — sx permet un léger écrasement horizontal si besoin.
+function drawSprite(ctx, name, x, y, ax, ay, s, sx){
+  var sp = SPRITES[name];
+  if (!sp) return;
+  var vb = sp.vb, kx = s * (sx || 1);
+  ctx.drawImage(sp.canvas, x + (vb[0]-ax)*kx, y + (vb[1]-ay)*s, vb[2]*kx, vb[3]*s);
+}
+
+// Combi vu de dessus (tête du Combi Snake) — angle 0 = avant vers +x
+function drawCombi(ctx, cx, cy, size, angle){
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.rotate(angle);
-
-  // ombre portée
-  ctx.fillStyle = 'rgba(51,48,46,0.18)';
-  roundRectPath(ctx, -w/2+2, -h/2+3, w, h, h*0.32);
-  ctx.fill();
-
-  // carrosserie (couleur) — carénage bas + bande avant, signature 2 tons du Combi
-  roundRectPath(ctx, -w/2, -h/2, w, h, h*0.32);
-  ctx.fillStyle = tone.trim;
-  ctx.fill();
-  // reflet de tôle bombée (centre clair, bords plus sombres) façon carrosserie au soleil couchant
-  var sheen = ctx.createLinearGradient(0,-h/2,0,h/2);
-  sheen.addColorStop(0,'rgba(0,0,0,0.14)');
-  sheen.addColorStop(0.5,'rgba(255,255,255,0.24)');
-  sheen.addColorStop(1,'rgba(0,0,0,0.14)');
-  ctx.fillStyle = sheen; ctx.fill();
-  ctx.lineWidth = 1.4;
-  ctx.strokeStyle = PAL.brown;
-  ctx.stroke();
-
-  // liseré fin le long de la cassure 2 tons (pinstripe, détail carrossier d'époque)
-  ctx.strokeStyle = 'rgba(244,240,228,0.85)'; ctx.lineWidth = 1;
-  roundRectPath(ctx, -w*0.42, -h*0.36, w*0.60, h*0.72, h*0.19);
-  ctx.stroke();
-
-  // pavillon crème encastré (s'arrête avant le museau pour garder la bande 2 tons visible devant)
-  roundRectPath(ctx, -w*0.42, -h*0.34, w*0.60, h*0.68, h*0.18);
-  ctx.fillStyle = tone.body;
-  ctx.fill();
-  var roofSheen = ctx.createLinearGradient(0,-h*0.34,0,h*0.34);
-  roofSheen.addColorStop(0,'rgba(0,0,0,0.05)');
-  roofSheen.addColorStop(0.5,'rgba(255,255,255,0.4)');
-  roofSheen.addColorStop(1,'rgba(0,0,0,0.05)');
-  ctx.fillStyle = roofSheen; ctx.fill();
-
-  // ligne de portière latérale + poignée
-  ctx.strokeStyle = 'rgba(51,48,46,0.28)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(-w*0.06,-h/2+2); ctx.lineTo(-w*0.06,h/2-2); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-w*0.16,-h*0.06); ctx.lineTo(-w*0.05,-h*0.06); ctx.stroke();
-
-  // roues aux quatre coins, flanc blanc (whitewall)
-  var wheelR = h * 0.15;
-  var wheelPos = [[-w*0.32,-h*0.5],[-w*0.32,h*0.5],[w*0.32,-h*0.5],[w*0.32,h*0.5]];
-  for (var i=0;i<wheelPos.length;i++){
-    var p = wheelPos[i];
-    ctx.fillStyle = PAL.brown;
-    roundRectPath(ctx, p[0]-wheelR, p[1]-wheelR*0.62, wheelR*2, wheelR*1.24, wheelR*0.5);
-    ctx.fill();
-    ctx.fillStyle = PAL.paper;
-    roundRectPath(ctx, p[0]-wheelR*0.62, p[1]-wheelR*0.4, wheelR*1.24, wheelR*0.8, wheelR*0.35);
-    ctx.fill();
-  }
-
-  // pare-chocs chromé avant
-  ctx.strokeStyle = PAL.paper; ctx.lineWidth = 2.2;
-  ctx.beginPath(); ctx.moveTo(w*0.49, -h*0.20); ctx.lineTo(w*0.49, h*0.20); ctx.stroke();
-
-  // pare-brise "splitscreen" (grand — signature du Combi) — le "devant" est vers +x
-  ctx.fillStyle = PAL.glass;
-  roundRectPath(ctx, w*0.10, -h*0.32, w*0.19, h*0.64, 5);
-  ctx.fill();
-  var glassSheen = ctx.createLinearGradient(w*0.10,0,w*0.29,0);
-  glassSheen.addColorStop(0,'rgba(255,255,255,0.32)');
-  glassSheen.addColorStop(1,'rgba(255,255,255,0)');
-  ctx.fillStyle = glassSheen;
-  roundRectPath(ctx, w*0.10, -h*0.32, w*0.19, h*0.64, 5);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.28)';
-  ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  ctx.moveTo(w*0.195, -h*0.30);
-  ctx.lineTo(w*0.195, h*0.30);
-  ctx.stroke();
-
-  // rétroviseurs (montés à la base du pare-brise)
-  ctx.fillStyle = tone.trim;
-  ctx.fillRect(w*0.13, -h*0.60, w*0.05, h*0.12);
-  ctx.fillRect(w*0.13, h*0.48, w*0.05, h*0.12);
-
-  // museau / calandre avant
-  ctx.fillStyle = tone.trim;
-  roundRectPath(ctx, w*0.36, -h*0.28, w*0.14, h*0.56, 4);
-  ctx.fill();
-  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1; ctx.stroke();
-
-  // phares ronds
-  ctx.fillStyle = PAL.paper;
-  ctx.strokeStyle = PAL.brown;
-  ctx.lineWidth = 1;
-  [-h*0.25, h*0.25].forEach(function(py){
-    ctx.beginPath(); ctx.arc(w*0.43, py, h*0.095, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-  });
-
-  // badge rond central sur le museau
-  ctx.fillStyle = PAL.paper;
-  ctx.beginPath(); ctx.arc(w*0.43, 0, h*0.075, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1; ctx.stroke();
-
+  ctx.rotate(angle + Math.PI/2);
+  drawSprite(ctx, 'combiTop', 0, 0, 100, 157, size*1.45/288);
   ctx.restore();
 }
 
-// Section de remorque / wagon du corps du Combi Snake
+// Caravane du convoi : le timon pointe vers le véhicule qui la précède
 function drawTrailer(ctx, cx, cy, size, angle, idx){
-  var w = size * 0.92, h = size * 0.56;
-  // convoi alterné rouge coccinelle / bleu pétrole — la tête (crème + pétrole) reste
-  // reconnaissable au premier coup d'œil grâce à son pare-brise et ses phares
-  var tone = (idx % 2 === 0) ? { body:PAL.terracotta, trim:'#8C2A26' } : { body:PAL.teal, trim:PAL.tealDark };
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.rotate(angle);
-
-  ctx.fillStyle = 'rgba(51,48,46,0.15)';
-  roundRectPath(ctx, -w/2+2, -h/2+2, w, h, h*0.3);
-  ctx.fill();
-
-  roundRectPath(ctx, -w/2, -h/2, w, h, h*0.3);
-  ctx.fillStyle = tone.body;
-  ctx.fill();
-  ctx.lineWidth = Math.max(1.5, h*0.1);
-  ctx.strokeStyle = tone.trim;
-  ctx.stroke();
-
-  ctx.fillStyle = PAL.brown;
-  var wheelR = h * 0.13;
-  var wheelPos = [[-w*0.28,-h*0.5],[-w*0.28,h*0.5],[w*0.28,-h*0.5],[w*0.28,h*0.5]];
-  for (var i=0;i<wheelPos.length;i++){
-    var p = wheelPos[i];
-    roundRectPath(ctx, p[0]-wheelR, p[1]-wheelR*0.6, wheelR*2, wheelR*1.2, wheelR*0.5);
-    ctx.fill();
-  }
+  ctx.rotate(angle + Math.PI/2);
+  drawSprite(ctx, idx % 2 === 0 ? 'trailerRed' : 'trailerTeal', 0, 0, 60, 108, size*1.1/140);
   ctx.restore();
 }
 
 function drawGasCan(ctx, cx, cy, size){
-  var w = size*0.58, h = size*0.62;
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.fillStyle = 'rgba(51,48,46,0.18)';
-  roundRectPath(ctx, -w/2+2, -h/2+3, w, h, 3);
-  ctx.fill();
-
-  roundRectPath(ctx, -w/2, -h/2, w, h, 3);
-  // laiton : tous les objets à ramasser partagent cette teinte, ce qui les distingue
-  // au premier coup d'œil des wagons rouge/bleu du convoi
-  var canGrad = ctx.createLinearGradient(-w/2,0,w/2,0);
-  canGrad.addColorStop(0,'#9A7529'); canGrad.addColorStop(0.5,PAL.mustard); canGrad.addColorStop(1,'#9A7529');
-  ctx.fillStyle = canGrad;
-  ctx.fill();
-  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.4; ctx.stroke();
-
-  // nervures embouties en X — signature du jerrican militaire/routier
-  ctx.strokeStyle = 'rgba(0,0,0,0.24)'; ctx.lineWidth = 1.1;
-  ctx.beginPath();
-  ctx.moveTo(-w*0.30,-h*0.24); ctx.lineTo(w*0.30,h*0.08);
-  ctx.moveTo(w*0.30,-h*0.24); ctx.lineTo(-w*0.30,h*0.08);
-  ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(-w*0.28,h*0.28); ctx.lineTo(w*0.28,h*0.28); ctx.stroke();
-
-  // goulot + bouchon
-  ctx.fillStyle = PAL.brown;
-  ctx.fillRect(-w*0.13, -h*0.64, w*0.26, h*0.16);
-  ctx.fillStyle = '#464240';
-  ctx.fillRect(-w*0.10, -h*0.70, w*0.20, h*0.08);
-
-  // poignée métallique
-  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 2.2;
-  ctx.beginPath(); ctx.arc(0, -h*0.5, w*0.19, Math.PI*1.05, Math.PI*1.95); ctx.stroke();
-
-  ctx.restore();
+  drawSprite(ctx, 'jerrycan', cx, cy, 48, 62, size*1.05/100);
 }
 
+// Planche posée en diagonale, nez vers le haut-droite (même convention qu'avant)
 function drawSurfboard(ctx, cx, cy, size){
-  var len = size*0.98, wid = size*0.26;
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(Math.PI/4);
-  ctx.fillStyle = 'rgba(51,48,46,0.15)';
-  ctx.beginPath(); ctx.ellipse(1,2,len/2,wid/2,0,0,Math.PI*2); ctx.fill();
-
-  // silhouette longboard fidèle : nez pointu, épaules rondes, queue carrée
-  ctx.beginPath();
-  ctx.moveTo(0,-len/2);
-  ctx.quadraticCurveTo(wid*0.52,-len*0.28,wid*0.5,0);
-  ctx.quadraticCurveTo(wid*0.5,len*0.34,wid*0.40,len/2);
-  ctx.lineTo(-wid*0.40,len/2);
-  ctx.quadraticCurveTo(-wid*0.5,len*0.34,-wid*0.5,0);
-  ctx.quadraticCurveTo(-wid*0.52,-len*0.28,0,-len/2);
-  ctx.closePath();
-  var boardGrad = ctx.createLinearGradient(-wid/2,0,wid/2,0);
-  boardGrad.addColorStop(0,'#9A7529'); boardGrad.addColorStop(0.5,PAL.mustard); boardGrad.addColorStop(1,'#9A7529');
-  ctx.fillStyle = boardGrad;
-  ctx.fill();
-  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.3; ctx.stroke();
-
-  // liston central (stringer)
-  ctx.strokeStyle = 'rgba(51,48,46,0.4)'; ctx.lineWidth = 0.9;
-  ctx.beginPath(); ctx.moveTo(0,-len*0.47); ctx.lineTo(0,len*0.46); ctx.stroke();
-
-  // bande décorative
-  ctx.fillStyle = PAL.paper;
-  ctx.beginPath(); ctx.ellipse(0,-len*0.04,wid*0.30,len*0.30,0,0,Math.PI*2); ctx.fill();
-
-  // dérive visible en bout de planche
-  ctx.fillStyle = PAL.brown;
-  ctx.beginPath();
-  ctx.moveTo(-wid*0.11,len*0.49); ctx.lineTo(wid*0.11,len*0.49); ctx.lineTo(0,len*0.66);
-  ctx.closePath(); ctx.fill();
-
+  drawSprite(ctx, 'surfboard', 0, 0, 40, 99, size*1.1/182);
   ctx.restore();
 }
 
@@ -883,355 +1099,53 @@ function drawBeetleTopDown(ctx, cx, cy, size, tilt){
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(tilt || 0);
-
-  var W = size, Hh = size * 1.36;
-  var bodyRX = W*0.36, bodyRY = Hh*0.47;
-  var fenderRX = W*0.16, fenderRY = Hh*0.115;
-  var fx = W*0.32, fy = Hh*0.30;
-  var fenders = [[-fx,-fy],[fx,-fy],[-fx,fy],[fx,fy]]; // avant-gauche, avant-droit, arrière-gauche, arrière-droit
-
-  // ombre portée
-  ctx.fillStyle = 'rgba(51,48,46,0.2)';
-  ctx.beginPath(); ctx.ellipse(2,4,bodyRX+fenderRX*0.7,bodyRY,0,0,Math.PI*2); ctx.fill();
-
-  // dégradé métallisé partagé (centre clair, bords sombres) — suggère la tôle bombée au couchant
-  var sheen = ctx.createLinearGradient(-bodyRX,0,bodyRX,0);
-  sheen.addColorStop(0,'rgba(0,0,0,0.16)');
-  sheen.addColorStop(0.5,'rgba(255,255,255,0.28)');
-  sheen.addColorStop(1,'rgba(0,0,0,0.16)');
-
-  // ailes galbées — signature ronde de la Coccinelle, posées sous la carrosserie.
-  // Ailes sombres + carrosserie rouge : la voiture du joueur lit comme une vraie coccinelle.
-  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.3;
-  fenders.forEach(function(p){
-    ctx.beginPath(); ctx.ellipse(p[0],p[1],fenderRX,fenderRY,0,0,Math.PI*2);
-    ctx.fillStyle = '#3E3A38'; ctx.fill();
-    ctx.fillStyle = sheen; ctx.fill();
-    ctx.stroke();
-  });
-
-  // carrosserie centrale — dôme très arrondi façon galet
-  ctx.beginPath(); ctx.ellipse(0,0,bodyRX,bodyRY,0,0,Math.PI*2);
-  ctx.fillStyle = PAL.terracotta; ctx.fill();
-  ctx.fillStyle = sheen; ctx.fill();
-  ctx.lineWidth = 1.6; ctx.strokeStyle = PAL.brown; ctx.stroke();
-
-  // ligne de capot avant + moteur arrière
-  ctx.strokeStyle = 'rgba(51,48,46,0.3)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0,-bodyRY*0.92); ctx.lineTo(0,-bodyRY*0.22); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0,bodyRY*0.22); ctx.lineTo(0,bodyRY*0.92); ctx.stroke();
-
-  // lignes de portière (les 2 portes bombées, caractéristiques de la silhouette Coccinelle)
-  ctx.strokeStyle = 'rgba(51,48,46,0.26)'; ctx.lineWidth = 1;
-  [-1,1].forEach(function(side){
-    ctx.beginPath();
-    ctx.moveTo(side*bodyRX*0.7,-bodyRY*0.12);
-    ctx.quadraticCurveTo(side*bodyRX*0.88,0,side*bodyRX*0.7,bodyRY*0.14);
-    ctx.stroke();
-  });
-
-  // pare-brise avant galbé, avec reflet vitré
-  ctx.fillStyle = PAL.glass;
-  ctx.beginPath(); ctx.ellipse(0,-bodyRY*0.40,bodyRX*0.62,bodyRY*0.30,0,0,Math.PI*2); ctx.fill();
-  var glassSheen = ctx.createLinearGradient(-bodyRX*0.4,-bodyRY*0.6,bodyRX*0.2,-bodyRY*0.2);
-  glassSheen.addColorStop(0,'rgba(255,255,255,0.4)');
-  glassSheen.addColorStop(0.6,'rgba(255,255,255,0.05)');
-  glassSheen.addColorStop(1,'rgba(255,255,255,0)');
-  ctx.fillStyle = glassSheen;
-  ctx.beginPath(); ctx.ellipse(0,-bodyRY*0.40,bodyRX*0.62,bodyRY*0.30,0,0,Math.PI*2); ctx.fill();
-  // lunette arrière
-  ctx.fillStyle = 'rgba(44,74,85,0.75)';
-  ctx.beginPath(); ctx.ellipse(0,bodyRY*0.46,bodyRX*0.50,bodyRY*0.24,0,0,Math.PI*2); ctx.fill();
-
-  // phares ronds, nichés dans les ailes avant
-  ctx.fillStyle = PAL.paper; ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1;
-  [fenders[0], fenders[1]].forEach(function(p){
-    ctx.beginPath(); ctx.arc(p[0], p[1]-fenderRY*0.25, fenderRX*0.42, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-  });
-  // feux arrière, nichés dans les ailes arrière
-  ctx.fillStyle = PAL.terracotta;
-  [fenders[2], fenders[3]].forEach(function(p){
-    ctx.beginPath(); ctx.arc(p[0], p[1]+fenderRY*0.25, fenderRX*0.32, 0, Math.PI*2); ctx.fill();
-  });
-
-  // pare-chocs chromés avant/arrière — détail caractéristique des Coccinelle d'époque
-  ctx.strokeStyle = PAL.paper; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(-bodyRX*0.35,-bodyRY*0.88); ctx.quadraticCurveTo(0,-bodyRY*1.02,bodyRX*0.35,-bodyRY*0.88); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-bodyRX*0.32,bodyRY*0.88); ctx.quadraticCurveTo(0,bodyRY*1.02,bodyRX*0.32,bodyRY*0.88); ctx.stroke();
-
-  // roues à flanc blanc (whitewall) + enjoliveur chromé — signature des rassemblements Coccinelle
-  fenders.forEach(function(p){
-    ctx.fillStyle = PAL.brown;
-    ctx.beginPath(); ctx.ellipse(p[0],p[1],fenderRX*0.42,fenderRY*0.55,0,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = PAL.paper;
-    ctx.beginPath(); ctx.ellipse(p[0],p[1],fenderRX*0.30,fenderRY*0.40,0,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = PAL.brown;
-    ctx.beginPath(); ctx.ellipse(p[0],p[1],fenderRX*0.15,fenderRY*0.20,0,0,Math.PI*2); ctx.fill();
-  });
-
+  drawSprite(ctx, 'beetleTop', 0, 0, 100, 151, size*1.6/280);
   ctx.restore();
 }
 
 function drawObstacle(ctx, cx, cy, laneW, type){
-  ctx.save();
-  ctx.translate(cx, cy);
-  if (type === 'cone'){
-    ctx.fillStyle = 'rgba(51,48,46,0.18)';
-    ctx.beginPath(); ctx.ellipse(1,laneW*0.20,laneW*0.24,laneW*0.09,0,0,Math.PI*2); ctx.fill();
-    // socle
-    ctx.fillStyle = PAL.brown;
-    roundRectPath(ctx, -laneW*0.22, laneW*0.14, laneW*0.44, laneW*0.09, 2);
-    ctx.fill();
-    // cône tronqué avec dégradé (galbe plastique)
-    var coneGrad = ctx.createLinearGradient(-laneW*0.18,0,laneW*0.18,0);
-    coneGrad.addColorStop(0,'#A8441F'); coneGrad.addColorStop(0.5,PAL.orange); coneGrad.addColorStop(1,'#A8441F');
-    ctx.beginPath();
-    ctx.moveTo(0,-laneW*0.28);
-    ctx.lineTo(laneW*0.17,laneW*0.16);
-    ctx.lineTo(-laneW*0.17,laneW*0.16);
-    ctx.closePath();
-    ctx.fillStyle = coneGrad; ctx.fill();
-    ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.4; ctx.stroke();
-    // bandes réfléchissantes blanches (typiques des cônes de chantier)
-    ctx.fillStyle = PAL.white;
-    ctx.beginPath(); ctx.moveTo(-laneW*0.075,-laneW*0.02); ctx.lineTo(laneW*0.075,-laneW*0.02); ctx.lineTo(laneW*0.11,laneW*0.07); ctx.lineTo(-laneW*0.11,laneW*0.07); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(laneW*0.03,-laneW*0.15); ctx.lineTo(laneW*0.09,-laneW*0.15); ctx.lineTo(laneW*0.105,-laneW*0.095); ctx.lineTo(laneW*0.045,-laneW*0.095); ctx.closePath(); ctx.fill();
-  } else if (type === 'pothole'){
-    // forme irrégulière (fissure d'asphalte) plutôt qu'une ellipse parfaite
-    ctx.fillStyle = '#20211F';
-    ctx.beginPath();
-    ctx.moveTo(-laneW*0.23,-laneW*0.02);
-    ctx.lineTo(-laneW*0.11,-laneW*0.15);
-    ctx.lineTo(laneW*0.10,-laneW*0.12);
-    ctx.lineTo(laneW*0.24,laneW*0.01);
-    ctx.lineTo(laneW*0.15,laneW*0.14);
-    ctx.lineTo(-laneW*0.08,laneW*0.16);
-    ctx.lineTo(-laneW*0.21,laneW*0.09);
-    ctx.closePath();
-    ctx.fill();
-    var holeGrad = ctx.createRadialGradient(0,0,laneW*0.02,0,0,laneW*0.15);
-    holeGrad.addColorStop(0,'rgba(0,0,0,0.55)');
-    holeGrad.addColorStop(1,'rgba(0,0,0,0.1)');
-    ctx.fillStyle = holeGrad;
-    ctx.beginPath(); ctx.ellipse(0,0,laneW*0.14,laneW*0.09,0,0,Math.PI*2); ctx.fill();
-    // fissures irradiant du trou
-    ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(laneW*0.15,laneW*0.02); ctx.lineTo(laneW*0.27,-laneW*0.06); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-laneW*0.13,-laneW*0.10); ctx.lineTo(-laneW*0.20,-laneW*0.19); ctx.stroke();
-  } else {
-    // pick-up vintage vu de dessus — se distingue clairement de la Coccinelle du joueur
-    var w = laneW*0.58, h = w*1.32;
-    ctx.fillStyle = 'rgba(51,48,46,0.18)';
-    roundRectPath(ctx,-w/2+2,-h/2+3,w,h,8); ctx.fill();
-    roundRectPath(ctx,-w/2,-h/2,w,h,8);
-    // pick-up en tôle bleu-ardoise : le rouge est réservé à la Coccinelle du joueur,
-    // ce qui rend la lecture "moi / obstacle" immédiate sur la route
-    var carGrad = ctx.createLinearGradient(-w/2,0,w/2,0);
-    carGrad.addColorStop(0,'#3A5966'); carGrad.addColorStop(0.5,'#5C8090'); carGrad.addColorStop(1,'#3A5966');
-    ctx.fillStyle = carGrad; ctx.fill();
-    ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.5; ctx.stroke();
-    // cabine (vitres) à l'avant, benne plate à l'arrière
-    ctx.fillStyle = PAL.glass;
-    roundRectPath(ctx,-w*0.32,-h*0.40,w*0.64,h*0.30,4); ctx.fill();
-    ctx.strokeStyle = 'rgba(51,48,46,0.4)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(0,-h*0.40); ctx.lineTo(0,-h*0.10); ctx.stroke();
-    ctx.strokeStyle = 'rgba(51,48,46,0.3)';
-    roundRectPath(ctx,-w*0.36,h*0.02,w*0.72,h*0.42,3); ctx.stroke();
-    // roues visibles aux 4 coins
-    ctx.fillStyle = PAL.brown;
-    var corners = [[-w*0.42,-h*0.36],[w*0.42,-h*0.36],[-w*0.42,h*0.36],[w*0.42,h*0.36]];
-    for (var i=0;i<corners.length;i++){
-      ctx.beginPath(); ctx.arc(corners[i][0],corners[i][1],w*0.1,0,Math.PI*2); ctx.fill();
-    }
-  }
-  ctx.restore();
+  if (type === 'cone') drawSprite(ctx, 'cone', cx, cy, 52, 51, laneW*0.5/80);
+  else if (type === 'pothole') drawSprite(ctx, 'pothole', cx, cy, 68, 52, laneW*0.62/136);
+  else drawSprite(ctx, 'pickupTop', cx, cy, 100, 157, laneW*0.82/288);
 }
 
 function drawRoadsideDecor(ctx, x, y, type){
+  if (type !== 'palm'){ drawCactus(ctx, x, y + 8, 0, 32); return; }
   ctx.save();
   ctx.translate(x, y);
-  if (type === 'palm'){
-    ctx.strokeStyle = PAL.brown; ctx.lineWidth = 4; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(0,20); ctx.quadraticCurveTo(4,0,0,-18); ctx.stroke();
-    ctx.fillStyle = PAL.green;
-    for (var i=0;i<5;i++){
-      var a = (i/5) * Math.PI * 2;
-      ctx.beginPath();
-      ctx.ellipse(Math.cos(a)*10, -18+Math.sin(a)*6, 12, 5, a, 0, Math.PI*2);
-      ctx.fill();
-    }
-  } else {
-    // même famille visuelle que le cactus saguaro du désert (drawCactus), à plus petite échelle,
-    // pour que le décor de bord de route reste cohérent avec celui de Combi Rodéo
-    var cw = 15, ch = 30;
-    var cgrad = ctx.createLinearGradient(-cw*0.3,0,cw*0.3,0);
-    cgrad.addColorStop(0,'#3F5142'); cgrad.addColorStop(0.5,PAL.green); cgrad.addColorStop(1,'#3F5142');
-    ctx.fillStyle = cgrad; ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1;
-    roundRectPath(ctx, -cw*0.18, -ch, cw*0.36, ch, cw*0.16); ctx.fill(); ctx.stroke();
-    roundRectPath(ctx, -cw*0.52, -ch*0.58, cw*0.26, ch*0.34, cw*0.11); ctx.fill(); ctx.stroke();
-    roundRectPath(ctx, cw*0.26, -ch*0.76, cw*0.26, ch*0.34, cw*0.11); ctx.fill(); ctx.stroke();
-    ctx.strokeStyle = 'rgba(51,48,46,0.35)'; ctx.lineWidth = 0.7;
-    ctx.beginPath(); ctx.moveTo(0,-ch*0.94); ctx.lineTo(0,-ch*0.06); ctx.stroke();
+  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0,20); ctx.quadraticCurveTo(4,0,0,-18); ctx.stroke();
+  ctx.fillStyle = PAL.green;
+  for (var i=0;i<5;i++){
+    var a = (i/5) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.ellipse(Math.cos(a)*10, -18+Math.sin(a)*6, 12, 5, a, 0, Math.PI*2);
+    ctx.fill();
   }
   ctx.restore();
 }
 
-// Combi vu de côté (Combi Rodéo) — le sol touche y=0, l'avant est vers +x
+// Combi Samba vu de côté (Combi Rodéo) — le sol touche y, l'avant est vers +x
 function drawCombiSide(ctx, x, y, size, tilt){
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(tilt || 0);
-
-  var w = size;
-  var wheelR = size*0.135;
-  var wheelY = -wheelR;
-  var bodyH = size*0.56;
-  var bodyBottomY = wheelY;
-  var bodyTopY = bodyBottomY - bodyH;
-  var roofSplitY = bodyTopY + bodyH*0.46;
-
-  // carrosserie basse (couleur) — museau avant arrondi vers +x
-  roundRectPath(ctx, -w*0.46, bodyTopY, w*0.90, bodyBottomY-bodyTopY, { tl:bodyH*0.22, tr:bodyH*0.55, br:bodyH*0.12, bl:bodyH*0.12 });
-  ctx.fillStyle = PAL.teal;
-  ctx.fill();
-  var sideSheen = ctx.createLinearGradient(0,bodyTopY,0,bodyBottomY);
-  sideSheen.addColorStop(0,'rgba(255,255,255,0.22)');
-  sideSheen.addColorStop(0.5,'rgba(255,255,255,0.02)');
-  sideSheen.addColorStop(1,'rgba(0,0,0,0.2)');
-  ctx.fillStyle = sideSheen; ctx.fill();
-  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.6; ctx.stroke();
-
-  // liseré pinstripe le long de la cassure 2 tons
-  ctx.strokeStyle = 'rgba(244,240,228,0.8)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(-w*0.44,roofSplitY+2); ctx.lineTo(w*0.40,roofSplitY+2); ctx.stroke();
-
-  // pavillon crème
-  roundRectPath(ctx, -w*0.44, bodyTopY, w*0.86, roofSplitY-bodyTopY, { tl:bodyH*0.2, tr:bodyH*0.42, br:0, bl:0 });
-  ctx.fillStyle = PAL.cream;
-  ctx.fill();
-  var roofSheen = ctx.createLinearGradient(0,bodyTopY,0,roofSplitY);
-  roofSheen.addColorStop(0,'rgba(255,255,255,0.4)');
-  roofSheen.addColorStop(1,'rgba(0,0,0,0.06)');
-  ctx.fillStyle = roofSheen; ctx.fill();
-
-  // ligne de portière latérale coulissante + poignée
-  ctx.strokeStyle = 'rgba(51,48,46,0.3)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(-w*0.06,bodyTopY+bodyH*0.1); ctx.lineTo(-w*0.06,bodyBottomY-2); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-w*0.16,bodyTopY+bodyH*0.62); ctx.lineTo(-w*0.08,bodyTopY+bodyH*0.62); ctx.stroke();
-
-  // grille d'aération arrière (moteur refroidi à l'air, signature technique du Combi)
-  ctx.strokeStyle = 'rgba(51,48,46,0.35)'; ctx.lineWidth = 1;
-  for (var vi=0; vi<3; vi++){
-    ctx.beginPath();
-    ctx.moveTo(-w*0.40, bodyBottomY-bodyH*0.10-vi*3.2);
-    ctx.lineTo(-w*0.30, bodyBottomY-bodyH*0.10-vi*3.2);
-    ctx.stroke();
-  }
-
-  // pare-brise avant, incliné, avec reflet
-  ctx.fillStyle = PAL.glass;
-  roundRectPath(ctx, w*0.08, bodyTopY+bodyH*0.08, w*0.28, bodyH*0.40, 6);
-  ctx.fill();
-  var windGrad = ctx.createLinearGradient(w*0.08,bodyTopY,w*0.08,bodyTopY+bodyH*0.4);
-  windGrad.addColorStop(0,'rgba(255,255,255,0.38)');
-  windGrad.addColorStop(1,'rgba(255,255,255,0)');
-  ctx.fillStyle = windGrad;
-  roundRectPath(ctx, w*0.08, bodyTopY+bodyH*0.08, w*0.28, bodyH*0.40, 6);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1;
-  roundRectPath(ctx, w*0.08, bodyTopY+bodyH*0.08, w*0.28, bodyH*0.40, 6);
-  ctx.stroke();
-
-  // rétroviseur
-  ctx.fillStyle = PAL.tealDark;
-  ctx.fillRect(w*0.05, bodyTopY+bodyH*0.26, w*0.05, bodyH*0.13);
-
-  // roues + enjoliveurs, flanc blanc (whitewall)
-  [-w*0.27, w*0.27].forEach(function(wx){
-    ctx.fillStyle = PAL.brown;
-    ctx.beginPath(); ctx.arc(wx, wheelY, wheelR, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = PAL.paper;
-    ctx.beginPath(); ctx.arc(wx, wheelY, wheelR*0.66, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = PAL.brown;
-    ctx.beginPath(); ctx.arc(wx, wheelY, wheelR*0.32, 0, Math.PI*2); ctx.fill();
-  });
-
-  // pare-chocs chromé avant + phare
-  ctx.strokeStyle = PAL.paper; ctx.lineWidth = 2.4;
-  ctx.beginPath(); ctx.moveTo(w*0.40, bodyBottomY-bodyH*0.16); ctx.lineTo(w*0.40, bodyBottomY-bodyH*0.02); ctx.stroke();
-  ctx.fillStyle = PAL.paper;
-  ctx.beginPath(); ctx.arc(w*0.40, bodyTopY+bodyH*0.62, bodyH*0.085, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1; ctx.stroke();
-
-  // badge central
-  ctx.fillStyle = PAL.paper;
-  ctx.beginPath(); ctx.arc(-w*0.02, bodyTopY+bodyH*0.72, bodyH*0.07, 0, Math.PI*2); ctx.fill();
-
+  drawSprite(ctx, 'combiSide', 0, 0, 180, 175, size*1.4/324);
   ctx.restore();
 }
 
+// Obstacles du désert, posés sur le sol : leur hauteur visible suit la hauteur de
+// collision, pour que chaque saut raté ou réussi se lise honnêtement à l'écran.
 function drawCactus(ctx, x, groundY, w, h){
-  ctx.save();
-  ctx.translate(x, groundY);
-  var grad = ctx.createLinearGradient(-w*0.3,0,w*0.3,0);
-  grad.addColorStop(0,'#3F5142'); grad.addColorStop(0.5,PAL.green); grad.addColorStop(1,'#3F5142');
-  ctx.fillStyle = grad;
-  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.2;
-  roundRectPath(ctx, -w*0.18, -h, w*0.36, h, w*0.16); ctx.fill(); ctx.stroke();
-  roundRectPath(ctx, -w*0.5, -h*0.62, w*0.24, h*0.34, w*0.1); ctx.fill(); ctx.stroke();
-  roundRectPath(ctx, w*0.26, -h*0.78, w*0.24, h*0.34, w*0.1); ctx.fill(); ctx.stroke();
-  // nervures verticales — signature du cactus saguaro
-  ctx.strokeStyle = 'rgba(51,48,46,0.4)'; ctx.lineWidth = 0.9;
-  [-0.09,-0.03,0.03,0.09].forEach(function(fx){
-    ctx.beginPath(); ctx.moveTo(w*fx,-h*0.96); ctx.lineTo(w*fx,-h*0.04); ctx.stroke();
-  });
-  // petites épines
-  ctx.fillStyle = 'rgba(51,48,46,0.5)';
-  for (var si=0; si<5; si++){
-    ctx.beginPath(); ctx.arc(-w*0.14+si*w*0.07, -h*(0.15+si*0.16), 0.8, 0, Math.PI*2); ctx.fill();
-  }
-  ctx.restore();
+  drawSprite(ctx, 'cactus', x, groundY, 50, 138, h/132);
 }
 
 function drawRockObstacle(ctx, x, groundY, w, h){
-  ctx.save();
-  ctx.translate(x, groundY);
-  ctx.beginPath();
-  ctx.moveTo(-w*0.5, 0);
-  ctx.lineTo(-w*0.42, -h*0.55);
-  ctx.lineTo(-w*0.1, -h);
-  ctx.lineTo(w*0.28, -h*0.82);
-  ctx.lineTo(w*0.5, -h*0.2);
-  ctx.lineTo(w*0.46, 0);
-  ctx.closePath();
-  var rockGrad = ctx.createLinearGradient(-w*0.5,-h,w*0.3,0);
-  rockGrad.addColorStop(0,'#9A968A'); rockGrad.addColorStop(0.55,PAL.brownLight); rockGrad.addColorStop(1,'#3D3B36');
-  ctx.fillStyle = rockGrad;
-  ctx.fill();
-  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.4; ctx.stroke();
-  // facettes internes (aspect géologique)
-  ctx.strokeStyle = 'rgba(51,48,46,0.32)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(-w*0.1,-h); ctx.lineTo(-w*0.05,0); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(w*0.28,-h*0.82); ctx.lineTo(w*0.1,-h*0.15); ctx.stroke();
-  ctx.restore();
+  drawSprite(ctx, 'rock', x, groundY, 54, 78, h/58, 0.72);
 }
 
-// Bosse basse à bandes de danger (à sauter, comme les 2 autres obstacles au sol)
-function drawPotholeSide(ctx, x, groundY, w, h){
-  ctx.save();
-  ctx.translate(x, groundY);
-  roundRectPath(ctx, -w*0.5, -h, w, h, h*0.4);
-  var bumpGrad = ctx.createLinearGradient(0,-h,0,0);
-  bumpGrad.addColorStop(0,'#DE7448'); bumpGrad.addColorStop(1,'#A94A26');
-  ctx.fillStyle = bumpGrad;
-  ctx.fill();
-  ctx.strokeStyle = PAL.brown; ctx.lineWidth = 1.3; ctx.stroke();
-  ctx.strokeStyle = PAL.white; ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(-w*0.3, -h*0.7); ctx.lineTo(-w*0.05, -h*0.7);
-  ctx.moveTo(w*0.05, -h*0.7); ctx.lineTo(w*0.3, -h*0.7);
-  ctx.stroke();
-  ctx.restore();
+function drawLogSide(ctx, x, groundY, w, h){
+  drawSprite(ctx, 'log', x, groundY, 71, 56, w*1.08/134);
 }
 
 function drawDune(ctx, x, groundY, w, h, tone){
@@ -1247,53 +1161,8 @@ function drawDune(ctx, x, groundY, w, h, tone){
 }
 
 function drawRodeoCollectible(ctx, x, y, type){
-  ctx.save();
-  ctx.translate(x, y);
-  if (type === 'flower'){
-    // tournesol : pétales allongées en 2 couches, cœur texturé
-    ctx.fillStyle = PAL.mustardDark;
-    for (var i=0;i<8;i++){
-      var a = (i/8)*Math.PI*2 + 0.2;
-      ctx.beginPath();
-      ctx.ellipse(Math.cos(a)*7.5, Math.sin(a)*7.5, 5.5, 2.6, a, 0, Math.PI*2);
-      ctx.fill();
-    }
-    ctx.fillStyle = PAL.terracotta;
-    for (var i2=0;i2<6;i2++){
-      var a2 = (i2/6)*Math.PI*2;
-      ctx.beginPath();
-      ctx.ellipse(Math.cos(a2)*6.5, Math.sin(a2)*6.5, 5, 2.4, a2, 0, Math.PI*2);
-      ctx.fill();
-    }
-    var centerGrad = ctx.createRadialGradient(-1,-1,0.5,0,0,5.5);
-    centerGrad.addColorStop(0,'#7A6A48'); centerGrad.addColorStop(1,'#4E4735');
-    ctx.fillStyle = centerGrad;
-    ctx.beginPath(); ctx.arc(0,0,5,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 0.6;
-    ctx.beginPath(); ctx.arc(0,0,2.6,0,Math.PI*2); ctx.stroke();
-  } else {
-    // capsule vintage : bord denté (crown cork) + reflet métallique
-    var teeth = 12, rOuter = 8, rInner = 6.2;
-    ctx.fillStyle = PAL.teal;
-    ctx.beginPath();
-    for (var t=0;t<teeth*2;t++){
-      var ang = (t/(teeth*2))*Math.PI*2;
-      var rr = (t%2===0) ? rOuter : rInner;
-      var px = Math.cos(ang)*rr, py = Math.sin(ang)*rr;
-      if (t===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
-    }
-    ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = PAL.brown; ctx.lineWidth = 0.8; ctx.stroke();
-    var capGrad = ctx.createLinearGradient(-rInner,-rInner,rInner,rInner);
-    capGrad.addColorStop(0,'rgba(255,255,255,0.4)');
-    capGrad.addColorStop(0.5,'rgba(255,255,255,0.05)');
-    capGrad.addColorStop(1,'rgba(0,0,0,0.15)');
-    ctx.fillStyle = capGrad;
-    ctx.beginPath(); ctx.arc(0,0,rInner*0.82,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = PAL.paper;
-    ctx.beginPath(); ctx.arc(0,0,rInner*0.42,0,Math.PI*2); ctx.fill();
-  }
-  ctx.restore();
+  if (type === 'flower') drawSprite(ctx, 'sunflower', x, y, 55, 55, 28/84);
+  else drawSprite(ctx, 'bottlecap', x, y, 55, 55, 21/80);
 }
 
 /* ==========================================================================
@@ -1725,26 +1594,20 @@ function scheduleMenuMap(){
 window.addEventListener('resize', scheduleMenuMap);
 
 function drawMenuIcons(){
-  var c1 = document.getElementById('iconSnake');
-  var g1 = c1.getContext('2d');
-  g1.clearRect(0,0,c1.width,c1.height);
-  g1.fillStyle = PAL.creamDark;
-  roundRectPath(g1,0,0,c1.width,c1.height,16); g1.fill();
-  drawCombi(g1, c1.width/2, c1.height/2, c1.width*0.72, 0);
-
-  var c2 = document.getElementById('iconHighway');
-  var g2 = c2.getContext('2d');
-  g2.clearRect(0,0,c2.width,c2.height);
-  g2.fillStyle = PAL.creamDark;
-  roundRectPath(g2,0,0,c2.width,c2.height,16); g2.fill();
-  drawBeetleTopDown(g2, c2.width/2, c2.height/2, c2.width*0.58, -0.08);
-
-  var c3 = document.getElementById('iconRodeo');
-  var g3 = c3.getContext('2d');
-  g3.clearRect(0,0,c3.width,c3.height);
-  g3.fillStyle = PAL.creamDark;
-  roundRectPath(g3,0,0,c3.width,c3.height,16); g3.fill();
-  drawCombiSide(g3, c3.width*0.56, c3.height*0.78, c3.width*0.62, -0.08);
+  function tile(id){
+    var c = document.getElementById(id), g = c.getContext('2d');
+    g.clearRect(0,0,c.width,c.height);
+    g.fillStyle = PAL.creamDark;
+    roundRectPath(g,0,0,c.width,c.height,16); g.fill();
+    return g;
+  }
+  // convoi vu de dessus : une caravane tractée par le Combi
+  var g1 = tile('iconSnake');
+  drawTrailer(g1, 26, 60, 33, 0, 0);
+  drawCombi(g1, 81, 60, 48, 0);
+  // la Coccinelle se reconnaît d'abord à sa silhouette en arche, donc de profil
+  drawSprite(tile('iconHighway'), 'beetleSide', 60, 66, 160, 110, 104/302);
+  drawCombiSide(tile('iconRodeo'), 60, 84, 74, -0.08);
 }
 
 /* ==========================================================================
@@ -2290,7 +2153,7 @@ function renderRodeo(){
   var jumpRatio = clamp((rGroundY - combi.y) / 130, 0, 1);
   ctx.fillStyle = 'rgba(51,48,46,' + (0.28*(1-jumpRatio*0.7)).toFixed(2) + ')';
   ctx.beginPath();
-  ctx.ellipse(combi.x, rGroundY+3, rCombiSize*0.30*(1-jumpRatio*0.35), rCombiSize*0.09*(1-jumpRatio*0.35), 0, 0, Math.PI*2);
+  ctx.ellipse(combi.x, rGroundY+3, rCombiSize*0.44*(1-jumpRatio*0.35), rCombiSize*0.1*(1-jumpRatio*0.35), 0, 0, Math.PI*2);
   ctx.fill();
 
   rCollectibles.forEach(function(cl){ drawRodeoCollectible(ctx, cl.x, cl.y, cl.type); });
@@ -2298,7 +2161,7 @@ function renderRodeo(){
   rObstacles.forEach(function(ob){
     if (ob.type==='cactus') drawCactus(ctx, ob.x, rGroundY, ob.w, ob.h);
     else if (ob.type==='rock') drawRockObstacle(ctx, ob.x, rGroundY, ob.w, ob.h);
-    else drawPotholeSide(ctx, ob.x, rGroundY, ob.w, ob.h);
+    else drawLogSide(ctx, ob.x, rGroundY, ob.w, ob.h);
   });
 
   drawCombiSide(ctx, combi.x, combi.y, rCombiSize, combi.tilt);
@@ -2528,8 +2391,7 @@ bestSnakeEl.textContent = getBest('snake');
 bestHighwayEl.textContent = getBest('highway');
 bestRodeoEl.textContent = getBest('rodeo');
 btnMute.textContent = soundEnabled ? '🔊' : '🔇';
-drawMenuIcons();
-drawMenuMap();
+loadSprites(function(){ drawMenuIcons(); drawMenuMap(); });
 
 })();
 </script>
