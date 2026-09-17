@@ -1197,21 +1197,6 @@ function mapRect(el){
   return { x:r.left-p.left, y:r.top-p.top, w:r.width, h:r.height, r:r.right-p.left, b:r.bottom-p.top };
 }
 
-// Toponyme façon carte ancienne : italique à empattements, lettres espacées, liseré clair
-function mapLabel(g, text, x, y, color, halo, align){
-  var track = 1.6, widths = [], total = 0, i, cx;
-  g.save();
-  g.font = "italic 700 12px Georgia, 'Times New Roman', serif";
-  g.textBaseline = 'middle';
-  for (i=0;i<text.length;i++){ widths.push(g.measureText(text[i]).width); total += widths[i] + (i ? track : 0); }
-  var start = align === 'right' ? x - total : (align === 'center' ? x - total/2 : x);
-  g.lineJoin = 'round'; g.lineWidth = 3; g.strokeStyle = halo;
-  for (i=0, cx=start; i<text.length; i++){ g.strokeText(text[i], cx, y); cx += widths[i] + track; }
-  g.fillStyle = color;
-  for (i=0, cx=start; i<text.length; i++){ g.fillText(text[i], cx, y); cx += widths[i] + track; }
-  g.restore();
-}
-
 // Trace une ligne ondulée lissée passant par une série de points (décalée de dy)
 function traceWavy(g, pts, dy){
   g.moveTo(pts[0].x, pts[0].y + dy);
@@ -1351,7 +1336,6 @@ function drawMapSea(g, mw, horizonY, shoreY, rnd){
     y += step; step *= 1.25; size *= 1.2;
   }
   if (shoreY - horizonY > 44) drawSailboat(g, mw*0.70, horizonY + (shoreY-horizonY)*0.40, 0.85);
-  if (shoreY - horizonY > 36) mapLabel(g, "l'Océan", mw*0.40, (horizonY+shoreY)/2 + 2, MAP.foam, 'rgba(53,122,138,0.9)', 'center');
 }
 
 function drawMapBeach(g, mw, mh, shoreY, rnd){
@@ -1459,7 +1443,6 @@ function drawMapSurfSpot(g, x0, x1, y0, y1){
   drawTowel(g, x0 + fw*0.70, y1 - 7*k, k);
   drawGasCan(g, x0 + fw*0.47, y1 - 13*k, 20*k);
   drawParasol(g, x0 + fw*0.84, y1 - 9*k, k);
-  mapLabel(g, 'le Spot', x0 + 2, y0 + 10, PAL.brown, MAP.sand, 'left');
 }
 
 // La corniche (Beetle Highway) : la route, la circulation, un palmier
@@ -1500,7 +1483,6 @@ function drawMapRoad(g, mw, spotH, cardH, rnd){
     g.save(); g.translate(px0 + pfw*0.45, top - 7); g.scale(pk, pk);
     drawRoadsideDecor(g, 0, -20, 'palm');
     g.restore();
-    mapLabel(g, 'la Corniche', mw - 10, spotH.y + 16, PAL.brown, MAP.sand, 'right');
   }
 }
 
@@ -1553,7 +1535,6 @@ function drawMapDunes(g, mw, mh, spotR, cardR, rnd){
   g.beginPath(); g.ellipse(jx, groundY + 2, size*0.28, size*0.06, 0, 0, Math.PI*2); g.fill();
   drawCombiSide(g, jx, jy, size, -0.18);
 
-  mapLabel(g, 'les Dunes', 14, spotR.y + 24, PAL.brown, MAP.duneBack, 'left');
 }
 
 function drawMenuMap(){
